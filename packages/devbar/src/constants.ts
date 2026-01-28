@@ -544,24 +544,24 @@ export const TOOLTIP_STYLES = `
   flex-basis: auto;
   flex-shrink: 0;
 }
-/* BASE only (< 640px): flexible width, centered, icons wrap to second row */
+/* BASE only (< 640px): wider bar, centered, action icons wrap to second row */
 @media (max-width: 639px) {
   [data-devbar] {
     width: auto !important;
     min-width: auto !important;
-    max-width: calc(100vw - 40px) !important;
+    max-width: calc(100vw - 24px) !important;
     left: 50% !important;
     right: auto !important;
     transform: translateX(-50%) !important;
-    overflow: hidden !important;
   }
   .devbar-main {
     flex-wrap: wrap;
     justify-content: center;
     width: 100%;
   }
+  /* Keep status row (connection dot + info) on same line */
   .devbar-status {
-    flex-wrap: wrap !important;
+    flex-wrap: nowrap !important;
     justify-content: center;
     width: 100%;
   }
@@ -569,7 +569,6 @@ export const TOOLTIP_STYLES = `
     justify-content: center;
     flex-wrap: wrap;
     white-space: normal !important;
-    width: 100%;
   }
   .devbar-info > span {
     flex-shrink: 1 !important;
