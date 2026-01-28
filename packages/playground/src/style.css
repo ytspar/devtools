@@ -623,6 +623,7 @@ body {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: 12px;
   padding: 0.625rem 0.75rem;
   background: rgba(16, 185, 129, 0.08);
   border-bottom: 1px solid var(--devbar-color-border);
@@ -631,11 +632,13 @@ body {
   text-transform: uppercase;
   letter-spacing: var(--devbar-tracking-wide);
   font-size: var(--devbar-text-xs);
+  white-space: nowrap;
 }
 
 .controls-toggle {
   width: 20px;
   height: 20px;
+  min-width: 20px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -646,6 +649,7 @@ body {
   cursor: pointer;
   font-size: var(--devbar-text-base);
   line-height: 1;
+  flex-shrink: 0;
   transition: all var(--devbar-transition-fast);
 }
 
