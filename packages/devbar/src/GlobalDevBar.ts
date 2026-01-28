@@ -1301,10 +1301,19 @@ export class GlobalDevBar {
       Object.assign(keyEl.style, {
         color: '#9ca3af',
         fontSize: '0.6875rem',
+        width: '120px',
         minWidth: '120px',
+        maxWidth: '120px',
         flexShrink: '0',
+        overflow: 'hidden',
+        textOverflow: 'ellipsis',
+        whiteSpace: 'nowrap',
       });
       keyEl.textContent = key;
+      // Show full key on hover if it might be truncated
+      if (key.length > 18) {
+        keyEl.title = key;
+      }
       row.appendChild(keyEl);
 
       const valueEl = document.createElement('span');
@@ -1312,17 +1321,11 @@ export class GlobalDevBar {
       Object.assign(valueEl.style, {
         color: '#d1d5db',
         fontSize: '0.6875rem',
-        overflow: 'hidden',
-        textOverflow: 'ellipsis',
-        whiteSpace: 'nowrap',
-        maxWidth: '180px',
-        cursor: strValue.length > 30 ? 'help' : 'default',
+        flex: '1',
+        wordBreak: 'break-word',
+        whiteSpace: 'pre-wrap',
       });
       valueEl.textContent = strValue;
-      // Show full value on hover via title attribute
-      if (strValue.length > 30) {
-        valueEl.title = strValue;
-      }
       row.appendChild(valueEl);
 
       container.appendChild(row);
