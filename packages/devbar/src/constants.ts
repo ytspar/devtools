@@ -4,15 +4,9 @@
  * Shared constants used by the DevBar components.
  */
 
-// ============================================================================
-// Console Settings
-// ============================================================================
-
-/** Maximum number of console logs to retain */
-export const MAX_CONSOLE_LOGS = 100;
-
-/** Higher quality JPEG for devbar screenshots */
-export const DEVBAR_SCREENSHOT_QUALITY = 0.8;
+// Re-export shared constants from sweetlink's browser modules to avoid pulling in Node.js-only code
+export { MAX_CONSOLE_LOGS } from '@ytspar/sweetlink/browser/consoleCapture';
+export { DEVBAR_SCREENSHOT_QUALITY } from '@ytspar/sweetlink/browser/screenshotUtils';
 
 // ============================================================================
 // Reconnection Settings

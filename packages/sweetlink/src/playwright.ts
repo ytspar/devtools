@@ -1,5 +1,6 @@
 import * as fs from 'fs';
 import * as path from 'path';
+import { parseViewport, DEFAULT_VIEWPORT, VIEWPORT_PRESETS } from './viewportUtils.js';
 
 // ============================================================================
 // Constants
@@ -11,15 +12,6 @@ const CDP_CONNECTION_TIMEOUT_MS = 2000;
 const NAVIGATION_TIMEOUT_MS = 30000;
 const SELECTOR_TIMEOUT_MS = 5000;
 const HOVER_TRANSITION_DELAY_MS = 300;
-
-/** Default viewport dimensions */
-const DEFAULT_VIEWPORT = { width: 1512, height: 982 };
-
-const VIEWPORT = {
-  mobile: { width: 375, height: 667 },
-  tablet: { width: 768, height: 1024 },
-  desktop: { width: 1440, height: 900 },
-} as const;
 
 // ============================================================================
 // Module loading
@@ -142,26 +134,8 @@ export async function screenshotViaPlaywright(options: {
   try {
     // Set viewport if requested
     if (options.viewport) {
-      let { width, height } = DEFAULT_VIEWPORT;
-
-      if (options.viewport === 'mobile') {
-        width = VIEWPORT.mobile.width;
-        height = VIEWPORT.mobile.height;
-      } else if (options.viewport === 'tablet') {
-        width = VIEWPORT.tablet.width;
-        height = VIEWPORT.tablet.height;
-      } else if (options.viewport === 'desktop') {
-        width = VIEWPORT.desktop.width;
-        height = VIEWPORT.desktop.height;
-      } else {
-        const parts = options.viewport.split('x');
-        if (parts.length === 2) {
-          width = parseInt(parts[0], 10);
-          height = parseInt(parts[1], 10);
-        }
-      }
-
-      await page.setViewportSize({ width, height });
+      const viewport = parseViewport(options.viewport, DEFAULT_VIEWPORT);
+      await page.setViewportSize({ width: viewport.width, height: viewport.height });
     }
 
     // Handle selector and hover

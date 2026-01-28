@@ -1,115 +1,18 @@
 /**
  * DevBar Type Definitions
  *
- * Shared types used by the DevBar components.
+ * Re-exports shared types from @ytspar/sweetlink and defines DevBar-specific types.
+ *
+ * NOTE: We import from the types sub-path to avoid pulling in Node.js-only modules.
  */
 
-// ============================================================================
-// Console Log Types (duplicated from sweetlink for devbar independence)
-// ============================================================================
-
-/**
- * Structure for captured console log entries
- */
-export interface ConsoleLog {
-  level: 'log' | 'error' | 'warn' | 'info' | 'debug' | string;
-  message: string;
-  timestamp: number;
-  stack?: string;
-  source?: string;
-}
-
-// ============================================================================
-// Sweetlink Command Types (subset needed by devbar)
-// ============================================================================
-
-/**
- * Commands that can be sent over the Sweetlink WebSocket connection
- */
-export interface SweetlinkCommand {
-  type:
-    | 'screenshot'
-    | 'query-dom'
-    | 'get-logs'
-    | 'exec-js'
-    | 'get-network'
-    | 'browser-client-ready'
-    | 'save-screenshot'
-    | 'design-review-screenshot'
-    | 'check-api-key'
-    | 'api-key-status'
-    | 'save-outline'
-    | 'save-schema'
-    | 'refresh'
-    | 'request-screenshot'
-    | 'screenshot-response'
-    | 'log-subscribe'
-    | 'log-unsubscribe'
-    | 'log-event'
-    | 'hmr-screenshot'
-    | 'subscribe'
-    | 'unsubscribe'
-    | 'screenshot-saved'
-    | 'design-review-saved'
-    | 'design-review-error'
-    | 'outline-saved'
-    | 'outline-error'
-    | 'schema-saved'
-    | 'schema-error';
-  selector?: string;
-  property?: string;
-  code?: string;
-  filter?: string;
-  options?: Record<string, unknown>;
-  data?: unknown;
-  path?: string;
-  screenshotPath?: string;
-  reviewPath?: string;
-  outlinePath?: string;
-  schemaPath?: string;
-  error?: string;
-  requestId?: string;
-  subscriptionId?: string;
-  channel?: string;
-  captureConsole?: boolean;
-  timeout?: number;
-  format?: 'jpeg' | 'png';
-  quality?: number;
-  scale?: number;
-  includeMetadata?: boolean;
-  filters?: {
-    levels?: ('log' | 'error' | 'warn' | 'info' | 'debug')[];
-    pattern?: string;
-    source?: string;
-  };
-}
-
-// ============================================================================
-// Document Structure Types
-// ============================================================================
-
-/**
- * Node in the document outline tree
- */
-export interface OutlineNode {
-  tagName: string;
-  level: number;
-  text: string;
-  id?: string;
-  children: OutlineNode[];
-  category?: string;
-}
-
-/**
- * Extracted page schema information
- */
-export interface PageSchema {
-  jsonLd: unknown[];
-  metaTags: Record<string, string>;
-  openGraph: Record<string, string>;
-  twitter: Record<string, string>;
-  microdata: unknown[];
-}
+// Re-export shared types from sweetlink's types module
+export type {
+  ConsoleLog,
+  SweetlinkCommand,
+  OutlineNode,
+  PageSchema,
+} from '@ytspar/sweetlink/types';
 
 // ============================================================================
 // DevBar Configuration Types

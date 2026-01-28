@@ -7,6 +7,7 @@
 
 import puppeteer, { type Browser, type Page, type ConsoleMessage, type HTTPRequest, type HTTPResponse } from 'puppeteer-core';
 import * as fs from 'fs';
+import { parseViewport } from './viewportUtils.js';
 
 // ============================================================================
 // Constants
@@ -15,14 +16,6 @@ import * as fs from 'fs';
 const CDP_URL = process.env.CHROME_CDP_URL || 'http://127.0.0.1:9222';
 const DEFAULT_DEV_URL = 'http://localhost:3000';
 
-/** Default viewport dimensions */
-const VIEWPORT = {
-  default: { width: 1512, height: 3000 },
-  mobile: { width: 375, height: 667 },
-  tablet: { width: 768, height: 1024 },
-  desktop: { width: 1440, height: 900 },
-} as const;
-
 /** Timeouts */
 const NETWORK_IDLE_TIMEOUT_MS = 10000;
 const NETWORK_IDLE_TIME_MS = 500;
@@ -30,42 +23,6 @@ const SELECTOR_TIMEOUT_MS = 5000;
 const HOVER_TRANSITION_DELAY_MS = 300;
 const CONSOLE_LOG_COLLECT_DELAY_MS = 1000;
 const NETWORK_REQUEST_COLLECT_DELAY_MS = 2000;
-
-interface ViewportConfig {
-  width: number;
-  height: number;
-  isMobile: boolean;
-}
-
-function parseViewport(viewportName?: string): ViewportConfig {
-  if (!viewportName) {
-    return { width: VIEWPORT.default.width, height: VIEWPORT.default.height, isMobile: false };
-  }
-
-  const name = viewportName.toLowerCase();
-
-  if (name === 'mobile') {
-    return { width: VIEWPORT.mobile.width, height: VIEWPORT.mobile.height, isMobile: true };
-  }
-  if (name === 'tablet') {
-    return { width: VIEWPORT.tablet.width, height: VIEWPORT.tablet.height, isMobile: true };
-  }
-  if (name === 'desktop') {
-    return { width: VIEWPORT.desktop.width, height: VIEWPORT.desktop.height, isMobile: false };
-  }
-
-  // Try to parse "widthxheight"
-  const parts = viewportName.split('x');
-  if (parts.length === 2) {
-    return {
-      width: parseInt(parts[0], 10),
-      height: parseInt(parts[1], 10),
-      isMobile: false
-    };
-  }
-
-  return { width: VIEWPORT.default.width, height: VIEWPORT.default.height, isMobile: false };
-}
 
 /**
  * Check if Chrome DevTools Protocol is available

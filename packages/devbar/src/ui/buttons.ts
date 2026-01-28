@@ -21,9 +21,9 @@ export function getButtonStyles(color: string, isActive: boolean, isDisabled: bo
 }
 
 /**
- * Apply hover effects to a button element
+ * Apply hover effects to a button element (internal helper)
  */
-export function applyButtonHoverEffects(
+function applyButtonHoverEffects(
   btn: HTMLButtonElement,
   color: string,
   isActive: boolean = false

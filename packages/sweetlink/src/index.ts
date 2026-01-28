@@ -82,6 +82,14 @@ export {
   MAX_LOG_MESSAGE_LENGTH
 } from './urlUtils.js';
 
+// Viewport utilities (shared by CDP and Playwright)
+export {
+  parseViewport,
+  DEFAULT_VIEWPORT,
+  VIEWPORT_PRESETS,
+  type ViewportConfig
+} from './viewportUtils.js';
+
 // Pixel Ruler for visual measurement
 export {
   measureViaPlaywright,
