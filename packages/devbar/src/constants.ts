@@ -563,37 +563,31 @@ export const TOOLTIP_STYLES = `
   flex-basis: auto;
   flex-shrink: 0;
 }
-/* BASE only (< 640px): wider bar, centered, action icons wrap to second row */
+/* BASE only (< 640px): fit content, centered horizontally */
 @media (max-width: 639px) {
   [data-devbar] {
     width: auto !important;
     min-width: auto !important;
-    max-width: calc(100vw - 16px) !important;
-    left: 8px !important;
-    right: 8px !important;
-    transform: none !important;
+    max-width: calc(100vw - 32px) !important;
+    left: 50% !important;
+    right: auto !important;
+    transform: translateX(-50%) !important;
   }
   .devbar-main {
     flex-wrap: wrap;
     justify-content: center;
-    width: 100%;
   }
   /* Keep status row (connection dot + info) on same line */
   .devbar-status {
     flex-wrap: nowrap !important;
     justify-content: center;
-    width: 100%;
   }
   .devbar-info {
     justify-content: center;
     flex-wrap: nowrap;
     white-space: nowrap !important;
   }
-  .devbar-info > span {
-    flex-shrink: 1 !important;
-  }
   .devbar-actions {
-    width: 100%;
     justify-content: center;
     margin-top: 0.25rem;
     flex-wrap: nowrap;

@@ -822,7 +822,7 @@ body {
 @media (max-width: 640px) {
   .controls-panel {
     top: auto;
-    bottom: 80px;
+    bottom: 140px;
     left: 8px;
     width: 180px;
   }
