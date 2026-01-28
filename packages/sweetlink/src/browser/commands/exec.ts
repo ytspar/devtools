@@ -9,48 +9,34 @@
 
 import type { SweetlinkCommand, SweetlinkResponse } from '../../types.js';
 
-// Maximum allowed code length to prevent abuse
 const MAX_CODE_LENGTH = 10000;
+
+function errorResponse(error: string): SweetlinkResponse {
+  return { success: false, error, timestamp: Date.now() };
+}
 
 /**
  * Handle exec-js command with security guards
  */
 export function handleExecJS(command: SweetlinkCommand): SweetlinkResponse {
+  // Security: Block in production environments
+  if (typeof process !== 'undefined' && process.env?.NODE_ENV === 'production') {
+    return errorResponse('exec-js is disabled in production for security reasons');
+  }
+
+  if (!command.code) {
+    return errorResponse('Code is required');
+  }
+
+  if (typeof command.code !== 'string') {
+    return errorResponse('Code must be a string');
+  }
+
+  if (command.code.length > MAX_CODE_LENGTH) {
+    return errorResponse(`Code exceeds maximum length of ${MAX_CODE_LENGTH} characters`);
+  }
+
   try {
-    // Security: Block in production environments
-    if (typeof process !== 'undefined' && process.env?.NODE_ENV === 'production') {
-      return {
-        success: false,
-        error: 'exec-js is disabled in production for security reasons',
-        timestamp: Date.now()
-      };
-    }
-
-    if (!command.code) {
-      return {
-        success: false,
-        error: 'Code is required',
-        timestamp: Date.now()
-      };
-    }
-
-    // Security: Validate code is a string and within length limits
-    if (typeof command.code !== 'string') {
-      return {
-        success: false,
-        error: 'Code must be a string',
-        timestamp: Date.now()
-      };
-    }
-
-    if (command.code.length > MAX_CODE_LENGTH) {
-      return {
-        success: false,
-        error: `Code exceeds maximum length of ${MAX_CODE_LENGTH} characters`,
-        timestamp: Date.now()
-      };
-    }
-
     // Execute the code - intentional for dev tools debugging
     // eslint-disable-next-line no-eval
     const result = (0, eval)(command.code);
@@ -63,12 +49,7 @@ export function handleExecJS(command: SweetlinkCommand): SweetlinkResponse {
       },
       timestamp: Date.now()
     };
-
   } catch (error) {
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : 'Execution failed',
-      timestamp: Date.now()
-    };
+    return errorResponse(error instanceof Error ? error.message : 'Execution failed');
   }
 }

@@ -308,55 +308,49 @@ export class SweetlinkBridge {
       try {
         const message = JSON.parse(event.data);
 
-        // Handle screenshot-saved confirmation
-        if (message.type === 'screenshot-saved') {
-          console.log('[Sweetlink] Screenshot saved:', message.path);
-          return;
-        }
+        // Handle confirmation and info messages
+        switch (message.type) {
+          case 'screenshot-saved':
+            console.log('[Sweetlink] Screenshot saved:', message.path);
+            return;
 
-        // Handle design-review-saved confirmation
-        if (message.type === 'design-review-saved') {
-          console.log('[Sweetlink] Design review saved:', message.reviewPath);
-          return;
-        }
+          case 'design-review-saved':
+            console.log('[Sweetlink] Design review saved:', message.reviewPath);
+            return;
 
-        // Handle design-review-error
-        if (message.type === 'design-review-error') {
-          console.error('[Sweetlink] Design review failed:', message.error);
-          return;
-        }
+          case 'design-review-error':
+            console.error('[Sweetlink] Design review failed:', message.error);
+            return;
 
-        // Handle server-info message for verification
-        if (message.type === 'server-info') {
-          clearTimeout(verificationTimeout);
-          const info = message as ServerInfo;
-          console.log('[Sweetlink] Server info received:', info);
+          case 'server-info': {
+            clearTimeout(verificationTimeout);
+            const info = message as ServerInfo;
+            console.log('[Sweetlink] Server info received:', info);
 
-          // Check if server matches our app port
-          const serverMatchesApp = info.appPort === null || info.appPort === this.currentAppPort;
+            const serverMatchesApp = info.appPort === null || info.appPort === this.currentAppPort;
 
-          if (!serverMatchesApp) {
-            console.log(`[Sweetlink] Server is for port ${info.appPort}, but we're on port ${this.currentAppPort}. Trying next port...`);
-            ws.close();
+            if (!serverMatchesApp) {
+              console.log(`[Sweetlink] Server is for port ${info.appPort}, but we're on port ${this.currentAppPort}. Trying next port...`);
+              ws.close();
 
-            const nextPort = port + 1;
-            if (nextPort < this.basePort + this.maxPortRetries) {
-              setTimeout(() => this.connectWebSocket(nextPort), PORT_RETRY_DELAY_MS);
-            } else {
-              console.log(`[Sweetlink] No matching server found for port ${this.currentAppPort}. Will retry...`);
-              setTimeout(() => this.connectWebSocket(this.basePort), PORT_SEARCH_FAIL_RETRY_MS);
+              const nextPort = port + 1;
+              if (nextPort < this.basePort + this.maxPortRetries) {
+                setTimeout(() => this.connectWebSocket(nextPort), PORT_RETRY_DELAY_MS);
+              } else {
+                console.log(`[Sweetlink] No matching server found for port ${this.currentAppPort}. Will retry...`);
+                setTimeout(() => this.connectWebSocket(this.basePort), PORT_SEARCH_FAIL_RETRY_MS);
+              }
+              return;
             }
+
+            this.verified = true;
+            this.serverInfo = info;
+            this.connected = true;
+            console.log(`[Sweetlink] Verified connection to server for port ${info.appPort ?? 'any'} (project: ${info.projectDir})`);
             return;
           }
-
-          this.verified = true;
-          this.serverInfo = info;
-          this.connected = true;
-          console.log(`[Sweetlink] Verified connection to server for port ${info.appPort ?? 'any'} (project: ${info.projectDir})`);
-          return;
         }
 
-        // Handle other commands only if verified
         if (!this.verified) {
           console.warn('[Sweetlink] Ignoring command before verification');
           return;

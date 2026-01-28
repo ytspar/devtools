@@ -588,9 +588,10 @@ export const TOOLTIP_STYLES = `
     white-space: nowrap !important;
   }
   .devbar-actions {
-    justify-content: center;
+    justify-content: space-evenly;
     margin-top: 0.25rem;
     flex-wrap: nowrap;
+    width: 100%;
   }
   /* Constrain tooltips to viewport on mobile */
   .devbar-tooltip::after {

@@ -31,6 +31,42 @@ const HOVER_TRANSITION_DELAY_MS = 300;
 const CONSOLE_LOG_COLLECT_DELAY_MS = 1000;
 const NETWORK_REQUEST_COLLECT_DELAY_MS = 2000;
 
+interface ViewportConfig {
+  width: number;
+  height: number;
+  isMobile: boolean;
+}
+
+function parseViewport(viewportName?: string): ViewportConfig {
+  if (!viewportName) {
+    return { width: VIEWPORT.default.width, height: VIEWPORT.default.height, isMobile: false };
+  }
+
+  const name = viewportName.toLowerCase();
+
+  if (name === 'mobile') {
+    return { width: VIEWPORT.mobile.width, height: VIEWPORT.mobile.height, isMobile: true };
+  }
+  if (name === 'tablet') {
+    return { width: VIEWPORT.tablet.width, height: VIEWPORT.tablet.height, isMobile: true };
+  }
+  if (name === 'desktop') {
+    return { width: VIEWPORT.desktop.width, height: VIEWPORT.desktop.height, isMobile: false };
+  }
+
+  // Try to parse "widthxheight"
+  const parts = viewportName.split('x');
+  if (parts.length === 2) {
+    return {
+      width: parseInt(parts[0], 10),
+      height: parseInt(parts[1], 10),
+      isMobile: false
+    };
+  }
+
+  return { width: VIEWPORT.default.width, height: VIEWPORT.default.height, isMobile: false };
+}
+
 /**
  * Check if Chrome DevTools Protocol is available
  */
@@ -103,36 +139,7 @@ export async function screenshotViaCDP(options: {
     const page = await findLocalDevPage(browser);
 
     // Set viewport size
-    let viewport: { width: number; height: number; isMobile: boolean } = {
-      width: VIEWPORT.default.width,
-      height: VIEWPORT.default.height,
-      isMobile: false
-    };
-
-    if (options.viewport) {
-      switch (options.viewport.toLowerCase()) {
-        case 'mobile':
-          viewport = { width: VIEWPORT.mobile.width, height: VIEWPORT.mobile.height, isMobile: true };
-          break;
-        case 'tablet':
-          viewport = { width: VIEWPORT.tablet.width, height: VIEWPORT.tablet.height, isMobile: true };
-          break;
-        case 'desktop':
-          viewport = { width: VIEWPORT.desktop.width, height: VIEWPORT.desktop.height, isMobile: false };
-          break;
-        default: {
-          // Try to parse "widthxheight"
-          const parts = options.viewport.split('x');
-          if (parts.length === 2) {
-            viewport = {
-              width: parseInt(parts[0], 10),
-              height: parseInt(parts[1], 10),
-              isMobile: false
-            };
-          }
-        }
-      }
-    }
+    const viewport = parseViewport(options.viewport);
 
     await page.setViewport({
       width: viewport.width,

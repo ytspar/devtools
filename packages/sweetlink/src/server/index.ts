@@ -296,75 +296,54 @@ function setupServerHandlers(server: WebSocketServer) {
           return;
         }
 
-        // Handle screenshot save request from browser
-        if (command.type === 'save-screenshot') {
-          console.log('[Sweetlink] Received save-screenshot command, hasData:', !!command.data);
-          const clientInfo = clients.get(ws);
-          console.log('[Sweetlink] Client info:', clientInfo);
+        // Handle browser-originated save commands
+        const clientInfo = clients.get(ws);
+        const isBrowserWithData = command.data && clientInfo?.type === 'browser';
 
-          if (command.data && clientInfo?.type === 'browser') {
-            const savedPath = await handleSaveScreenshot(command.data as Parameters<typeof handleSaveScreenshot>[0]);
-            console.log(`[Sweetlink] Screenshot saved to ${savedPath}`);
-            sendSuccess(ws, 'screenshot-saved', { path: savedPath });
-            return;
-          }
+        if (command.type === 'save-screenshot' && isBrowserWithData) {
+          const savedPath = await handleSaveScreenshot(command.data as Parameters<typeof handleSaveScreenshot>[0]);
+          console.log(`[Sweetlink] Screenshot saved to ${savedPath}`);
+          sendSuccess(ws, 'screenshot-saved', { path: savedPath });
+          return;
         }
 
-        // Handle design review screenshot request from browser
-        if (command.type === 'design-review-screenshot') {
-          console.log('[Sweetlink] Received design-review-screenshot command');
-          const clientInfo = clients.get(ws);
-
-          if (command.data && clientInfo?.type === 'browser') {
-            try {
-              const result = await handleDesignReviewScreenshot(command.data as Parameters<typeof handleDesignReviewScreenshot>[0]);
-              console.log(`[Sweetlink] Design review saved to ${result.reviewPath}`);
-              sendSuccess(ws, 'design-review-saved', {
-                screenshotPath: result.screenshotPath,
-                reviewPath: result.reviewPath,
-              });
-            } catch (error) {
-              console.error('[Sweetlink] Design review failed:', error instanceof Error ? error.message : error);
-              sendError(ws, 'design-review-error', error);
-            }
-            return;
+        if (command.type === 'design-review-screenshot' && isBrowserWithData) {
+          try {
+            const result = await handleDesignReviewScreenshot(command.data as Parameters<typeof handleDesignReviewScreenshot>[0]);
+            console.log(`[Sweetlink] Design review saved to ${result.reviewPath}`);
+            sendSuccess(ws, 'design-review-saved', {
+              screenshotPath: result.screenshotPath,
+              reviewPath: result.reviewPath,
+            });
+          } catch (error) {
+            console.error('[Sweetlink] Design review failed:', error instanceof Error ? error.message : error);
+            sendError(ws, 'design-review-error', error);
           }
+          return;
         }
 
-        // Handle save-outline request from browser
-        if (command.type === 'save-outline') {
-          console.log('[Sweetlink] Received save-outline command');
-          const clientInfo = clients.get(ws);
-
-          if (command.data && clientInfo?.type === 'browser') {
-            try {
-              const result = await handleSaveOutline(command.data as Parameters<typeof handleSaveOutline>[0]);
-              console.log(`[Sweetlink] Outline saved to ${result.outlinePath}`);
-              sendSuccess(ws, 'outline-saved', { outlinePath: result.outlinePath });
-            } catch (error) {
-              console.error('[Sweetlink] Outline save failed:', error instanceof Error ? error.message : error);
-              sendError(ws, 'outline-error', error);
-            }
-            return;
+        if (command.type === 'save-outline' && isBrowserWithData) {
+          try {
+            const result = await handleSaveOutline(command.data as Parameters<typeof handleSaveOutline>[0]);
+            console.log(`[Sweetlink] Outline saved to ${result.outlinePath}`);
+            sendSuccess(ws, 'outline-saved', { outlinePath: result.outlinePath });
+          } catch (error) {
+            console.error('[Sweetlink] Outline save failed:', error instanceof Error ? error.message : error);
+            sendError(ws, 'outline-error', error);
           }
+          return;
         }
 
-        // Handle save-schema request from browser
-        if (command.type === 'save-schema') {
-          console.log('[Sweetlink] Received save-schema command');
-          const clientInfo = clients.get(ws);
-
-          if (command.data && clientInfo?.type === 'browser') {
-            try {
-              const result = await handleSaveSchema(command.data as Parameters<typeof handleSaveSchema>[0]);
-              console.log(`[Sweetlink] Schema saved to ${result.schemaPath}`);
-              sendSuccess(ws, 'schema-saved', { schemaPath: result.schemaPath });
-            } catch (error) {
-              console.error('[Sweetlink] Schema save failed:', error instanceof Error ? error.message : error);
-              sendError(ws, 'schema-error', error);
-            }
-            return;
+        if (command.type === 'save-schema' && isBrowserWithData) {
+          try {
+            const result = await handleSaveSchema(command.data as Parameters<typeof handleSaveSchema>[0]);
+            console.log(`[Sweetlink] Schema saved to ${result.schemaPath}`);
+            sendSuccess(ws, 'schema-saved', { schemaPath: result.schemaPath });
+          } catch (error) {
+            console.error('[Sweetlink] Schema save failed:', error instanceof Error ? error.message : error);
+            sendError(ws, 'schema-error', error);
           }
+          return;
         }
 
         // ============================================================================
@@ -372,80 +351,64 @@ function setupServerHandlers(server: WebSocketServer) {
         // ============================================================================
 
         // Handle request-screenshot from CLI/Agent
-        if (command.type === 'request-screenshot') {
-          const clientInfo = clients.get(ws);
-          if (clientInfo?.type === 'cli') {
-            const requestId = command.requestId || `req-${Date.now()}`;
-            console.log(`[Sweetlink] Screenshot request ${requestId} from CLI`);
+        if (command.type === 'request-screenshot' && clientInfo?.type === 'cli') {
+          const requestId = command.requestId || `req-${Date.now()}`;
+          console.log(`[Sweetlink] Screenshot request ${requestId} from CLI`);
 
-            // Find browser client
-            const browserClients = Array.from(clients.entries())
-              .filter(([_, info]) => info.type === 'browser')
-              .map(([client, _]) => client);
+          const browserClients = Array.from(clients.entries())
+            .filter(([, info]) => info.type === 'browser')
+            .map(([client]) => client);
 
-            if (browserClients.length === 0) {
-              ws.send(JSON.stringify({
-                type: 'screenshot-response',
-                requestId,
-                success: false,
-                error: 'No browser client connected',
-                timestamp: Date.now()
-              }));
-              return;
-            }
-
-            // Set up timeout
-            const timeout = setTimeout(() => {
-              const pending = pendingScreenshotRequests.get(requestId);
-              if (pending) {
-                pendingScreenshotRequests.delete(requestId);
-                pending.clientWs.send(JSON.stringify({
-                  type: 'screenshot-response',
-                  requestId,
-                  success: false,
-                  error: 'Screenshot request timed out',
-                  timestamp: Date.now()
-                }));
-              }
-            }, SCREENSHOT_REQUEST_TIMEOUT_MS);
-
-            // Store pending request
-            pendingScreenshotRequests.set(requestId, {
+          if (browserClients.length === 0) {
+            ws.send(JSON.stringify({
+              type: 'screenshot-response',
               requestId,
-              clientWs: ws,
-              timeout
-            });
-
-            // Forward to browser with requestId
-            const browserWs = browserClients[0];
-            browserWs.send(JSON.stringify({
-              type: 'request-screenshot',
-              requestId,
-              selector: command.selector,
-              format: command.format || 'jpeg',
-              quality: command.quality || 0.7,
-              scale: command.scale || 0.25,
-              includeMetadata: command.includeMetadata !== false
+              success: false,
+              error: 'No browser client connected',
+              timestamp: Date.now()
             }));
             return;
           }
+
+          const timeout = setTimeout(() => {
+            const pending = pendingScreenshotRequests.get(requestId);
+            if (pending) {
+              pendingScreenshotRequests.delete(requestId);
+              pending.clientWs.send(JSON.stringify({
+                type: 'screenshot-response',
+                requestId,
+                success: false,
+                error: 'Screenshot request timed out',
+                timestamp: Date.now()
+              }));
+            }
+          }, SCREENSHOT_REQUEST_TIMEOUT_MS);
+
+          pendingScreenshotRequests.set(requestId, { requestId, clientWs: ws, timeout });
+
+          browserClients[0].send(JSON.stringify({
+            type: 'request-screenshot',
+            requestId,
+            selector: command.selector,
+            format: command.format || 'jpeg',
+            quality: command.quality || 0.7,
+            scale: command.scale || 0.25,
+            includeMetadata: command.includeMetadata !== false
+          }));
+          return;
         }
 
         // Handle screenshot-response from browser
-        if (command.type === 'screenshot-response') {
-          const clientInfo = clients.get(ws);
-          if (clientInfo?.type === 'browser' && command.requestId) {
-            const pending = pendingScreenshotRequests.get(command.requestId);
-            if (pending) {
-              clearTimeout(pending.timeout);
-              pendingScreenshotRequests.delete(command.requestId);
-              // Forward response to CLI client
-              if (pending.clientWs.readyState === WebSocket.OPEN) {
-                pending.clientWs.send(message.toString());
-              }
+        if (command.type === 'screenshot-response' && clientInfo?.type === 'browser' && command.requestId) {
+          const pending = pendingScreenshotRequests.get(command.requestId);
+          if (pending) {
+            clearTimeout(pending.timeout);
+            pendingScreenshotRequests.delete(command.requestId);
+            if (pending.clientWs.readyState === WebSocket.OPEN) {
+              pending.clientWs.send(message.toString());
             }
-            return;
           }
+          return;
         }
 
         // Handle channel subscription (e.g., 'hmr-screenshots')
@@ -501,97 +464,78 @@ function setupServerHandlers(server: WebSocketServer) {
         }
 
         // Handle HMR screenshot from browser
-        if (command.type === 'hmr-screenshot') {
-          const clientInfo = clients.get(ws);
-          if (clientInfo?.type === 'browser' && command.data) {
-            const hmrData = command.data as HmrScreenshotData;
-            hmrSequenceNumber++;
+        if (command.type === 'hmr-screenshot' && clientInfo?.type === 'browser' && command.data) {
+          const hmrData = command.data as HmrScreenshotData;
+          hmrSequenceNumber++;
 
-            console.log(`[Sweetlink] HMR screenshot received (${hmrData.trigger})`);
-            if (hmrData.changedFile) {
-              console.log(`[Sweetlink] Changed file: ${hmrData.changedFile}`);
-            }
-
-            // Save screenshot and logs
-            const result = await handleHmrScreenshot(hmrData);
-
-            // Notify all subscribers on 'hmr-screenshots' channel
-            const subscribers = channelSubscriptions.get('hmr-screenshots') || [];
-            const notificationData = {
-              screenshotPath: result.screenshotPath,
-              logsPath: result.logsPath,
-              trigger: hmrData.trigger,
-              changedFile: hmrData.changedFile,
-              timestamp: hmrData.timestamp,
-              sequenceNumber: hmrSequenceNumber,
-              logSummary: result.logSummary,
-            };
-
-            for (const sub of subscribers) {
-              if (sub.clientWs.readyState === WebSocket.OPEN) {
-                sendSuccess(sub.clientWs, 'hmr-screenshot-saved', notificationData);
-              }
-            }
-
-            // Send confirmation back to browser
-            sendSuccess(ws, 'hmr-screenshot-saved', {
-              screenshotPath: result.screenshotPath,
-              logsPath: result.logsPath,
-              sequenceNumber: hmrSequenceNumber,
-            });
-            return;
+          console.log(`[Sweetlink] HMR screenshot received (${hmrData.trigger})`);
+          if (hmrData.changedFile) {
+            console.log(`[Sweetlink] Changed file: ${hmrData.changedFile}`);
           }
+
+          const result = await handleHmrScreenshot(hmrData);
+
+          const notificationData = {
+            screenshotPath: result.screenshotPath,
+            logsPath: result.logsPath,
+            trigger: hmrData.trigger,
+            changedFile: hmrData.changedFile,
+            timestamp: hmrData.timestamp,
+            sequenceNumber: hmrSequenceNumber,
+            logSummary: result.logSummary,
+          };
+
+          const subscribers = channelSubscriptions.get('hmr-screenshots') || [];
+          for (const sub of subscribers) {
+            if (sub.clientWs.readyState === WebSocket.OPEN) {
+              sendSuccess(sub.clientWs, 'hmr-screenshot-saved', notificationData);
+            }
+          }
+
+          sendSuccess(ws, 'hmr-screenshot-saved', {
+            screenshotPath: result.screenshotPath,
+            logsPath: result.logsPath,
+            sequenceNumber: hmrSequenceNumber,
+          });
+          return;
         }
 
         // Handle log-event from browser (for streaming to subscribers)
-        if (command.type === 'log-event') {
-          const clientInfo = clients.get(ws);
-          if (clientInfo?.type === 'browser' && command.data) {
-            const log = command.data as ConsoleLog;
-            // Forward to matching subscriptions
-            for (const [_, sub] of logSubscriptions) {
-              if (sub.clientWs.readyState !== WebSocket.OPEN) continue;
+        if (command.type === 'log-event' && clientInfo?.type === 'browser' && command.data) {
+          const log = command.data as ConsoleLog;
+          for (const [, sub] of logSubscriptions) {
+            if (sub.clientWs.readyState !== WebSocket.OPEN) continue;
 
-              // Apply filters
-              if (sub.filters) {
-                if (sub.filters.levels && !sub.filters.levels.includes(log.level)) continue;
-                if (sub.filters.pattern) {
-                  try {
-                    const regex = safeRegex(sub.filters.pattern);
-                    if (!regex.test(log.message)) continue;
-                  } catch {
-                    // Invalid or dangerous pattern - skip this filter
-                    console.warn(`[Sweetlink] Skipping invalid regex pattern: ${sub.filters.pattern}`);
-                  }
+            if (sub.filters) {
+              if (sub.filters.levels && !sub.filters.levels.includes(log.level)) continue;
+              if (sub.filters.pattern) {
+                try {
+                  const regex = safeRegex(sub.filters.pattern);
+                  if (!regex.test(log.message)) continue;
+                } catch {
+                  console.warn(`[Sweetlink] Skipping invalid regex pattern: ${sub.filters.pattern}`);
                 }
-                if (sub.filters.source && log.source !== sub.filters.source) continue;
               }
-
-              sub.clientWs.send(JSON.stringify({
-                type: 'log-event',
-                subscriptionId: sub.subscriptionId,
-                log,
-                timestamp: Date.now()
-              }));
+              if (sub.filters.source && log.source !== sub.filters.source) continue;
             }
-            return;
+
+            sub.clientWs.send(JSON.stringify({
+              type: 'log-event',
+              subscriptionId: sub.subscriptionId,
+              log,
+              timestamp: Date.now()
+            }));
           }
+          return;
         }
 
-        // ============================================================================
-        // End v1.4.0 handlers
-        // ============================================================================
-
-        const clientInfo = clients.get(ws);
-
-        // If this is a CLI client sending a command, forward to browser
+        // Forward CLI commands to browser, browser responses to CLI
         if (clientInfo?.type === 'cli') {
           console.log(`[Sweetlink] Received command from CLI: ${command.type}`);
 
-          // Find browser clients
           const browserClients = Array.from(clients.entries())
-            .filter(([_, info]) => info.type === 'browser')
-            .map(([client, _]) => client);
+            .filter(([, info]) => info.type === 'browser')
+            .map(([client]) => client);
 
           if (browserClients.length === 0) {
             ws.send(JSON.stringify({
@@ -602,18 +546,13 @@ function setupServerHandlers(server: WebSocketServer) {
             return;
           }
 
-          // Forward command to first browser client
-          // Store reference to CLI client for response using WeakMap (prevents memory leaks)
           const browserWs = browserClients[0];
           cliClientMap.set(browserWs, ws);
           browserWs.send(message.toString());
-        }
-        // If this is a browser client sending a response, forward to CLI
-        else if (clientInfo?.type === 'browser') {
+        } else if (clientInfo?.type === 'browser') {
           const cliWs = cliClientMap.get(ws);
           if (cliWs && cliWs.readyState === WebSocket.OPEN) {
             cliWs.send(message.toString());
-            // Clear the reference (WeakMap will auto-cleanup on GC, but explicit delete is cleaner)
             cliClientMap.delete(ws);
           }
         }
