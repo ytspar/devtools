@@ -177,6 +177,18 @@ export class SweetlinkBridge {
     if (this.savedReviewTimeout) clearTimeout(this.savedReviewTimeout);
     if (this.hmrState.debounceTimeout) clearTimeout(this.hmrState.debounceTimeout);
 
+    // Null out timeout references to prevent stale references
+    this.reconnectTimeout = null;
+    this.savedScreenshotTimeout = null;
+    this.savedReviewTimeout = null;
+
+    // Reset HMR state to prevent memory leaks from closure references
+    this.hmrState = {
+      sequence: 0,
+      debounceTimeout: null,
+      lastCaptureTime: 0,
+    };
+
     // Close WebSocket
     if (this.ws) {
       this.ws.close();
@@ -192,6 +204,12 @@ export class SweetlinkBridge {
     // Run cleanup functions
     this.cleanupFunctions.forEach(fn => fn());
     this.cleanupFunctions = [];
+
+    // Clear console logs array to free memory
+    this.consoleLogs = [];
+
+    // Clear server info
+    this.serverInfo = null;
 
     this.connected = false;
     this.verified = false;

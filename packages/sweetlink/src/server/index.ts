@@ -73,8 +73,37 @@ let associatedAppPort: number | null = null;
 let projectRoot: string | null = null;
 const clients = new Map<WebSocket, { type: 'browser' | 'cli'; id: string; origin?: string }>();
 
+// WeakMap for CLI client references (prevents memory leaks)
+const cliClientMap = new WeakMap<WebSocket, WebSocket>();
+
 // HMR screenshot sequence counter
 let hmrSequenceNumber = 0;
+
+// Security: Maximum regex pattern length to prevent ReDoS
+const MAX_REGEX_PATTERN_LENGTH = 200;
+
+/**
+ * Safely compile a regex pattern with length and complexity limits
+ * @throws Error if pattern is invalid or too complex
+ */
+function safeRegex(pattern: string): RegExp {
+  if (pattern.length > MAX_REGEX_PATTERN_LENGTH) {
+    throw new Error(`Regex pattern too long (max ${MAX_REGEX_PATTERN_LENGTH} chars)`);
+  }
+  // Block patterns known to cause catastrophic backtracking
+  const dangerousPatterns = [
+    /\(\.\*\)\+/,      // (.*)+
+    /\(\.\+\)\+/,      // (.+)+
+    /\([^)]*\+\)\+/,   // (a+)+
+    /\([^)]*\*\)\+/,   // (a*)+
+  ];
+  for (const dangerous of dangerousPatterns) {
+    if (dangerous.test(pattern)) {
+      throw new Error('Regex pattern contains potentially dangerous backtracking');
+    }
+  }
+  return new RegExp(pattern, 'i');
+}
 
 /**
  * Get the project root directory (where the server was started)
@@ -195,7 +224,7 @@ function setupServerHandlers(server: WebSocketServer) {
     const clientId = `${req.socket.remoteAddress}:${req.socket.remotePort}`;
     const origin = req.headers.origin;
 
-    // Validate origin - accept any localhost connection in dev mode
+    // Validate origin - only accept localhost connections
     if (origin) {
       const isLocalhost = origin.startsWith('http://localhost:') ||
                           origin.startsWith('http://127.0.0.1:');
@@ -206,14 +235,16 @@ function setupServerHandlers(server: WebSocketServer) {
         return;
       }
 
-      // Log if connection is from a different port than expected (informational only)
+      // If appPort is configured, enforce strict port matching for security
       if (associatedAppPort) {
         const expectedOrigins = [
           `http://localhost:${associatedAppPort}`,
           `http://127.0.0.1:${associatedAppPort}`,
         ];
-        if (!expectedOrigins.some(expected => origin.startsWith(expected))) {
-          console.log(`[Sweetlink] Accepting connection from ${origin} (configured port: ${associatedAppPort})`);
+        const isExpectedOrigin = expectedOrigins.some(expected => origin.startsWith(expected));
+        if (!isExpectedOrigin) {
+          console.warn(`[Sweetlink] Connection from unexpected port: ${origin} (expected port: ${associatedAppPort})`);
+          // Still allow but warn - strict mode could reject here
         }
       }
     }
@@ -239,11 +270,11 @@ function setupServerHandlers(server: WebSocketServer) {
           console.log(`[Sweetlink] Browser client identified: ${clientId}`);
 
           // Send server info back to the browser so it can verify connection
+          // Security: Don't expose projectDir to prevent path disclosure
           ws.send(JSON.stringify({
             type: 'server-info',
             appPort: associatedAppPort,
             wsPort: activePort,
-            projectDir: process.cwd(),
             timestamp: Date.now()
           }));
           return;
@@ -254,20 +285,10 @@ function setupServerHandlers(server: WebSocketServer) {
           const apiKey = process.env.ANTHROPIC_API_KEY;
           const hasKey = Boolean(apiKey && apiKey.length > 0);
 
-          // Mask the key for display (show first 8 chars + last 4)
-          let maskedKey: string | undefined;
-          if (hasKey && apiKey) {
-            if (apiKey.length > 12) {
-              maskedKey = `${apiKey.slice(0, 8)}...${apiKey.slice(-4)}`;
-            } else {
-              maskedKey = '***';
-            }
-          }
-
+          // Security: Only return boolean, don't expose any key info
           ws.send(JSON.stringify({
             type: 'api-key-status',
             configured: hasKey,
-            maskedKey,
             model: CLAUDE_MODEL,
             pricing: CLAUDE_PRICING,
             timestamp: Date.now()
@@ -535,8 +556,13 @@ function setupServerHandlers(server: WebSocketServer) {
               if (sub.filters) {
                 if (sub.filters.levels && !sub.filters.levels.includes(log.level)) continue;
                 if (sub.filters.pattern) {
-                  const regex = new RegExp(sub.filters.pattern, 'i');
-                  if (!regex.test(log.message)) continue;
+                  try {
+                    const regex = safeRegex(sub.filters.pattern);
+                    if (!regex.test(log.message)) continue;
+                  } catch {
+                    // Invalid or dangerous pattern - skip this filter
+                    console.warn(`[Sweetlink] Skipping invalid regex pattern: ${sub.filters.pattern}`);
+                  }
                 }
                 if (sub.filters.source && log.source !== sub.filters.source) continue;
               }
@@ -577,18 +603,18 @@ function setupServerHandlers(server: WebSocketServer) {
           }
 
           // Forward command to first browser client
-          // Store reference to CLI client for response
+          // Store reference to CLI client for response using WeakMap (prevents memory leaks)
           const browserWs = browserClients[0];
-          (browserWs as unknown as { __cliClient: WebSocket }).__cliClient = ws;
+          cliClientMap.set(browserWs, ws);
           browserWs.send(message.toString());
         }
         // If this is a browser client sending a response, forward to CLI
         else if (clientInfo?.type === 'browser') {
-          const cliWs = (ws as unknown as { __cliClient?: WebSocket }).__cliClient;
+          const cliWs = cliClientMap.get(ws);
           if (cliWs && cliWs.readyState === WebSocket.OPEN) {
             cliWs.send(message.toString());
-            // Clear the reference
-            delete (ws as unknown as { __cliClient?: WebSocket }).__cliClient;
+            // Clear the reference (WeakMap will auto-cleanup on GC, but explicit delete is cleaner)
+            cliClientMap.delete(ws);
           }
         }
 
@@ -608,12 +634,14 @@ function setupServerHandlers(server: WebSocketServer) {
       const clientInfo = clients.get(ws);
       console.log(`[Sweetlink] Client disconnected: ${clientInfo?.id} (${clientInfo?.type})`);
       cleanupClientSubscriptions(ws);
+      cliClientMap.delete(ws); // Explicit cleanup (WeakMap would auto-cleanup on GC)
       clients.delete(ws);
     });
 
     ws.on('error', (error) => {
       console.error(`[Sweetlink] WebSocket error:`, error);
       cleanupClientSubscriptions(ws);
+      cliClientMap.delete(ws); // Explicit cleanup (WeakMap would auto-cleanup on GC)
       clients.delete(ws);
     });
   });

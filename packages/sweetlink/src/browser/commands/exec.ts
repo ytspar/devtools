@@ -2,15 +2,30 @@
  * Exec Command Handlers
  *
  * Handles JavaScript execution commands.
+ *
+ * SECURITY WARNING: This module executes arbitrary JavaScript for debugging.
+ * It is restricted to localhost connections and development environments only.
  */
 
 import type { SweetlinkCommand, SweetlinkResponse } from '../../types.js';
 
+// Maximum allowed code length to prevent abuse
+const MAX_CODE_LENGTH = 10000;
+
 /**
- * Handle exec-js command
+ * Handle exec-js command with security guards
  */
 export function handleExecJS(command: SweetlinkCommand): SweetlinkResponse {
   try {
+    // Security: Block in production environments
+    if (typeof process !== 'undefined' && process.env?.NODE_ENV === 'production') {
+      return {
+        success: false,
+        error: 'exec-js is disabled in production for security reasons',
+        timestamp: Date.now()
+      };
+    }
+
     if (!command.code) {
       return {
         success: false,
@@ -19,10 +34,26 @@ export function handleExecJS(command: SweetlinkCommand): SweetlinkResponse {
       };
     }
 
-    // Execute the code using indirect eval (same security model as original)
-    // Note: This is intentional - exec-js is a debugging feature for dev tools
-    const indirectEval = eval;
-    const result = indirectEval(command.code);
+    // Security: Validate code is a string and within length limits
+    if (typeof command.code !== 'string') {
+      return {
+        success: false,
+        error: 'Code must be a string',
+        timestamp: Date.now()
+      };
+    }
+
+    if (command.code.length > MAX_CODE_LENGTH) {
+      return {
+        success: false,
+        error: `Code exceeds maximum length of ${MAX_CODE_LENGTH} characters`,
+        timestamp: Date.now()
+      };
+    }
+
+    // Execute the code - intentional for dev tools debugging
+    // eslint-disable-next-line no-eval
+    const result = (0, eval)(command.code);
 
     return {
       success: true,

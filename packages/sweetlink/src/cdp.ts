@@ -291,20 +291,44 @@ export async function queryDOMViaCDP(selector: string, property?: string): Promi
   }
 }
 
+// Maximum allowed code length for CDP execution
+const MAX_CDP_CODE_LENGTH = 10000;
+
 /**
  * Execute JavaScript in the page context
+ *
+ * SECURITY: This function executes arbitrary JavaScript via CDP.
+ * It is intended for development/debugging only and includes guards:
+ * - Production environment check
+ * - Code length limit
+ * - Type validation
  */
-export async function execJSViaCDP(code: string): Promise<any> {
+export async function execJSViaCDP(code: string): Promise<unknown> {
+  // Security: Block in production environments
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error('execJSViaCDP is disabled in production for security reasons');
+  }
+
+  // Security: Validate code is a string
+  if (typeof code !== 'string') {
+    throw new Error('Code must be a string');
+  }
+
+  // Security: Limit code length to prevent abuse
+  if (code.length > MAX_CDP_CODE_LENGTH) {
+    throw new Error(`Code exceeds maximum length of ${MAX_CDP_CODE_LENGTH} characters`);
+  }
+
   const browser = await getCDPBrowser();
 
   try {
     const page = await findLocalDevPage(browser);
 
     // Use evaluate to run code in page context
+    // eslint-disable-next-line @typescript-eslint/no-implied-eval
     const result = await page.evaluate((jsCode: string) => {
-      // Use Function constructor for safer eval (intentional for dynamic code execution)
-       
-      return new Function(`return ${jsCode}`)();
+      // Intentional dynamic code execution for dev tools
+      return Function(`"use strict"; return (${jsCode})`)();
     }, code);
 
     return result;
