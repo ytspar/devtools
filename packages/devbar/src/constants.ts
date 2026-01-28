@@ -403,11 +403,21 @@ export const TOOLTIP_STYLES = `
   bottom: 100%;
   left: 0;
   right: 0;
-  height: 12px;
+  height: 16px;
   pointer-events: none;
 }
 .devbar-tooltip:hover::before {
   pointer-events: auto;
+}
+/* Extend bridge for right-aligned tooltips (tooltip extends left) */
+.devbar-tooltip-right::before {
+  left: -400px;
+  right: 0;
+}
+/* Extend bridge for left-aligned tooltips (tooltip extends right) */
+.devbar-tooltip-left::before {
+  left: 0;
+  right: -400px;
 }
 .devbar-tooltip::after {
   content: attr(data-tooltip);
@@ -418,7 +428,7 @@ export const TOOLTIP_STYLES = `
   padding: 0.625rem 1rem;
   background: rgba(17, 24, 39, 0.98);
   color: #10b981;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-family: 'Departure Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   font-size: 0.75rem;
   line-height: 1.5;
   border-radius: 6px;
