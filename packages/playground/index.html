@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>DevTools Playground</title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+
+    <!-- Open Graph meta tags for testing schema extraction -->
+    <meta property="og:title" content="DevTools Playground - Test Environment" />
+    <meta property="og:description" content="A playground for testing DevBar and Sweetlink packages" />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://ytspar.github.io/devtools/" />
+
+    <!-- Twitter Card meta tags -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="DevTools Playground" />
+    <meta name="twitter:description" content="Test environment for DevBar and Sweetlink" />
+
+    <!-- Standard meta tags -->
+    <meta name="description" content="A Vite-powered playground for testing DevBar and Sweetlink packages" />
+    <meta name="author" content="ytspar" />
+
+    <!-- JSON-LD structured data for testing schema extraction -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebApplication",
+      "name": "DevTools Playground",
+      "description": "Development playground for testing DevBar and Sweetlink packages",
+      "applicationCategory": "DeveloperApplication",
+      "operatingSystem": "Any",
+      "offers": {
+        "@type": "Offer",
+        "price": "0",
+        "priceCurrency": "USD"
+      }
+    }
+    </script>
+
+    <link rel="stylesheet" href="/src/style.css" />
+  </head>
+  <body>
+    <div id="app"></div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

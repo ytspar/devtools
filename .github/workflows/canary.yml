@@ -1,0 +1,105 @@
+# Publish canary releases to NPM
+#
+# Triggers:
+# - Push to main branch
+# - Manual workflow dispatch with optional version tag
+#
+# Canary versions: 1.0.1-canary.{short-sha}
+# Install: npm i @ytspar/sweetlink@canary
+
+name: Canary Release
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+    inputs:
+      version_suffix:
+        description: 'Optional version suffix (defaults to git short SHA)'
+        required: false
+        type: string
+
+jobs:
+  canary:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Install dependencies
+        run: pnpm install
+
+      - name: Build packages
+        run: pnpm build
+
+      - name: Get version suffix
+        id: version
+        env:
+          INPUT_SUFFIX: ${{ inputs.version_suffix }}
+        run: |
+          if [ -n "$INPUT_SUFFIX" ]; then
+            echo "suffix=$INPUT_SUFFIX" >> "$GITHUB_OUTPUT"
+          else
+            echo "suffix=$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Update sweetlink version for canary
+        env:
+          VERSION_SUFFIX: ${{ steps.version.outputs.suffix }}
+        run: |
+          cd packages/sweetlink
+          VERSION=$(node -p "require('./package.json').version")
+          CANARY_VERSION="${VERSION}-canary.${VERSION_SUFFIX}"
+          npm version "$CANARY_VERSION" --no-git-tag-version
+          echo "Publishing @ytspar/sweetlink@$CANARY_VERSION"
+
+      - name: Update devbar version for canary
+        env:
+          VERSION_SUFFIX: ${{ steps.version.outputs.suffix }}
+        run: |
+          cd packages/devbar
+          VERSION=$(node -p "require('./package.json').version")
+          CANARY_VERSION="${VERSION}-canary.${VERSION_SUFFIX}"
+          npm version "$CANARY_VERSION" --no-git-tag-version
+          echo "Publishing @ytspar/devbar@$CANARY_VERSION"
+
+      - name: Publish sweetlink canary
+        run: |
+          cd packages/sweetlink
+          npm publish --tag canary --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Publish devbar canary
+        run: |
+          cd packages/devbar
+          npm publish --tag canary --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Summary
+        env:
+          VERSION_SUFFIX: ${{ steps.version.outputs.suffix }}
+        run: |
+          echo "## Canary Release Published" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "Version suffix: \`${VERSION_SUFFIX}\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "Install with:" >> "$GITHUB_STEP_SUMMARY"
+          echo "\`\`\`bash" >> "$GITHUB_STEP_SUMMARY"
+          echo "npm i @ytspar/sweetlink@canary" >> "$GITHUB_STEP_SUMMARY"
+          echo "npm i @ytspar/devbar@canary" >> "$GITHUB_STEP_SUMMARY"
+          echo "\`\`\`" >> "$GITHUB_STEP_SUMMARY"

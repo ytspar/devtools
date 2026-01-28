@@ -7,9 +7,7 @@
  * @version 2.1.0
  */
 
-import html2canvas from 'html2canvas-pro';
-
-import type { ConsoleLog, SweetlinkCommand, SweetlinkResponse, HmrScreenshotData, ServerInfo } from '../types.js';
+import type { ConsoleLog, SweetlinkCommand, SweetlinkResponse, ServerInfo } from '../types.js';
 import {
   formatArgs,
   MAX_CONSOLE_LOGS,
@@ -17,12 +15,23 @@ import {
   createRejectionHandler,
   type OriginalConsoleMethods
 } from './consoleCapture.js';
+
+// Import command handlers
 import {
-  scaleCanvas,
-  canvasToDataUrl,
-  DEFAULT_SCREENSHOT_SCALE,
-  DEFAULT_SCREENSHOT_QUALITY
-} from './screenshotUtils.js';
+  handleScreenshot,
+  handleRequestScreenshot,
+  handleQueryDOM,
+  handleGetLogs,
+  handleExecJS,
+} from './commands/index.js';
+
+// Import HMR utilities
+import {
+  setupHmrDetection,
+  captureHmrScreenshot,
+  type HmrCaptureState,
+  type HmrCaptureConfig,
+} from './hmr.js';
 
 // ============================================================================
 // Constants
@@ -66,18 +75,19 @@ export class SweetlinkBridge {
   private savedReviewTimeout: ReturnType<typeof setTimeout> | null = null;
 
   // HMR tracking
-  private hmrSequence = 0;
-  private hmrDebounceTimeout: ReturnType<typeof setTimeout> | null = null;
-  private lastHmrCaptureTime = 0;
+  private hmrState: HmrCaptureState = {
+    sequence: 0,
+    debounceTimeout: null,
+    lastCaptureTime: 0,
+  };
 
   // Configuration
   private readonly basePort: number;
   private readonly maxPortRetries: number;
   private readonly hmrScreenshots: boolean;
-  private readonly hmrDebounceMs: number;
-  private readonly hmrCaptureDelay: number;
+  private readonly hmrConfig: HmrCaptureConfig;
   private readonly currentAppPort: number;
-  private currentPort: number;
+  private currentPort: number = DEFAULT_WS_PORT;
 
   // Cleanup functions
   private cleanupFunctions: (() => void)[] = [];
@@ -89,8 +99,10 @@ export class SweetlinkBridge {
       this.basePort = DEFAULT_WS_PORT;
       this.maxPortRetries = DEFAULT_MAX_PORT_RETRIES;
       this.hmrScreenshots = false;
-      this.hmrDebounceMs = DEFAULT_HMR_DEBOUNCE_MS;
-      this.hmrCaptureDelay = DEFAULT_HMR_CAPTURE_DELAY_MS;
+      this.hmrConfig = {
+        debounceMs: DEFAULT_HMR_DEBOUNCE_MS,
+        captureDelay: DEFAULT_HMR_CAPTURE_DELAY_MS,
+      };
       this.currentAppPort = 0;
       this.currentPort = DEFAULT_WS_PORT;
       this.originalConsole = {
@@ -112,8 +124,10 @@ export class SweetlinkBridge {
 
     this.maxPortRetries = config.maxPortRetries ?? DEFAULT_MAX_PORT_RETRIES;
     this.hmrScreenshots = config.hmrScreenshots ?? false;
-    this.hmrDebounceMs = config.hmrDebounceMs ?? DEFAULT_HMR_DEBOUNCE_MS;
-    this.hmrCaptureDelay = config.hmrCaptureDelay ?? DEFAULT_HMR_CAPTURE_DELAY_MS;
+    this.hmrConfig = {
+      debounceMs: config.hmrDebounceMs ?? DEFAULT_HMR_DEBOUNCE_MS,
+      captureDelay: config.hmrCaptureDelay ?? DEFAULT_HMR_CAPTURE_DELAY_MS,
+    };
     this.currentPort = this.basePort;
 
     // Store original console methods
@@ -136,7 +150,20 @@ export class SweetlinkBridge {
     this.connectWebSocket(this.basePort);
 
     if (this.hmrScreenshots) {
-      this.setupHmrDetection();
+      const cleanup = setupHmrDetection((trigger, changedFile, hmrMetadata) => {
+        if (this.verified) {
+          captureHmrScreenshot(
+            this.ws,
+            this.consoleLogs,
+            this.hmrState,
+            this.hmrConfig,
+            trigger,
+            changedFile,
+            hmrMetadata
+          );
+        }
+      });
+      this.cleanupFunctions.push(cleanup);
     }
   }
 
@@ -148,7 +175,7 @@ export class SweetlinkBridge {
     if (this.reconnectTimeout) clearTimeout(this.reconnectTimeout);
     if (this.savedScreenshotTimeout) clearTimeout(this.savedScreenshotTimeout);
     if (this.savedReviewTimeout) clearTimeout(this.savedReviewTimeout);
-    if (this.hmrDebounceTimeout) clearTimeout(this.hmrDebounceTimeout);
+    if (this.hmrState.debounceTimeout) clearTimeout(this.hmrState.debounceTimeout);
 
     // Close WebSocket
     if (this.ws) {
@@ -368,19 +395,19 @@ export class SweetlinkBridge {
   private async handleCommand(command: SweetlinkCommand): Promise<SweetlinkResponse> {
     switch (command.type) {
       case 'screenshot':
-        return await this.handleScreenshot(command);
+        return await handleScreenshot(command);
 
       case 'request-screenshot':
-        return await this.handleRequestScreenshot(command);
+        return await handleRequestScreenshot(command, this.ws);
 
       case 'query-dom':
-        return this.handleQueryDOM(command);
+        return handleQueryDOM(command);
 
       case 'get-logs':
-        return this.handleGetLogs(command);
+        return handleGetLogs(command, this.consoleLogs);
 
       case 'exec-js':
-        return this.handleExecJS(command);
+        return handleExecJS(command);
 
       default:
         return {
@@ -388,352 +415,6 @@ export class SweetlinkBridge {
           error: `Unknown command: ${command.type}`,
           timestamp: Date.now()
         };
-    }
-  }
-
-  private async handleScreenshot(command: SweetlinkCommand): Promise<SweetlinkResponse> {
-    try {
-      const element = command.selector
-        ? document.querySelector(command.selector)
-        : document.body;
-
-      if (!element) {
-        return {
-          success: false,
-          error: `Element not found: ${command.selector}`,
-          timestamp: Date.now()
-        };
-      }
-
-      const canvas = await html2canvas(element as HTMLElement, {
-        logging: false,
-        useCORS: true,
-        allowTaint: true,
-        ...command.options
-      });
-
-      const dataUrl = canvas.toDataURL('image/png');
-
-      return {
-        success: true,
-        data: {
-          screenshot: dataUrl,
-          width: canvas.width,
-          height: canvas.height,
-          selector: command.selector || 'body'
-        },
-        timestamp: Date.now()
-      };
-
-    } catch (error) {
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : 'Screenshot failed',
-        timestamp: Date.now()
-      };
-    }
-  }
-
-  private async handleRequestScreenshot(command: SweetlinkCommand): Promise<SweetlinkResponse> {
-    try {
-      const element = command.selector
-        ? document.querySelector(command.selector)
-        : document.body;
-
-      if (!element) {
-        const errorResponse = {
-          type: 'screenshot-response',
-          requestId: command.requestId,
-          success: false,
-          error: `Element not found: ${command.selector}`,
-          timestamp: Date.now()
-        };
-        this.ws?.send(JSON.stringify(errorResponse));
-        return errorResponse;
-      }
-
-      const scaleFactor = command.scale || DEFAULT_SCREENSHOT_SCALE;
-      const format = command.format || 'jpeg';
-      const quality = command.quality || DEFAULT_SCREENSHOT_QUALITY;
-
-      const originalCanvas = await html2canvas(element as HTMLElement, {
-        logging: false,
-        useCORS: true,
-        allowTaint: true,
-        ...command.options
-      });
-
-      // Scale down using shared utility
-      const smallCanvas = scaleCanvas(originalCanvas, { scale: scaleFactor });
-      const dataUrl = canvasToDataUrl(smallCanvas, { format, quality });
-
-      const responseData: Record<string, unknown> = {
-        screenshot: dataUrl,
-        width: smallCanvas.width,
-        height: smallCanvas.height,
-        selector: command.selector || 'body'
-      };
-
-      if (command.includeMetadata !== false) {
-        responseData.url = window.location.href;
-        responseData.timestamp = Date.now();
-        responseData.viewport = {
-          width: window.innerWidth,
-          height: window.innerHeight
-        };
-      }
-
-      const response = {
-        type: 'screenshot-response',
-        requestId: command.requestId,
-        success: true,
-        data: responseData,
-        timestamp: Date.now()
-      };
-
-      this.ws?.send(JSON.stringify(response));
-
-      return {
-        success: true,
-        data: responseData,
-        timestamp: Date.now()
-      };
-
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Screenshot failed';
-      const errorResponse = {
-        type: 'screenshot-response',
-        requestId: command.requestId,
-        success: false,
-        error: errorMessage,
-        timestamp: Date.now()
-      };
-      this.ws?.send(JSON.stringify(errorResponse));
-      return errorResponse;
-    }
-  }
-
-  private handleQueryDOM(command: SweetlinkCommand): SweetlinkResponse {
-    try {
-      if (!command.selector) {
-        return {
-          success: false,
-          error: 'Selector is required',
-          timestamp: Date.now()
-        };
-      }
-
-      const elements = document.querySelectorAll(command.selector);
-
-      if (elements.length === 0) {
-        return {
-          success: true,
-          data: {
-            found: false,
-            count: 0,
-            elements: []
-          },
-          timestamp: Date.now()
-        };
-      }
-
-      const results = Array.from(elements).map((el, index) => {
-        const result: Record<string, unknown> = {
-          index,
-          tagName: el.tagName.toLowerCase(),
-          id: el.id || null,
-          className: el.className || null,
-          textContent: el.textContent?.slice(0, 200) || null
-        };
-
-        if (command.property) {
-          const prop = command.property;
-          if (prop === 'computedStyle') {
-            const style = window.getComputedStyle(el);
-            result.computedStyle = {
-              display: style.display,
-              visibility: style.visibility,
-              opacity: style.opacity,
-              position: style.position
-            };
-          } else if (prop === 'boundingRect') {
-            result.boundingRect = el.getBoundingClientRect();
-          } else if (prop === 'attributes') {
-            result.attributes = Object.fromEntries(
-              Array.from(el.attributes).map(attr => [attr.name, attr.value])
-            );
-          } else {
-            result[prop] = (el as unknown as Record<string, unknown>)[prop];
-          }
-        }
-
-        return result;
-      });
-
-      return {
-        success: true,
-        data: {
-          found: true,
-          count: elements.length,
-          elements: results
-        },
-        timestamp: Date.now()
-      };
-
-    } catch (error) {
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : 'Query failed',
-        timestamp: Date.now()
-      };
-    }
-  }
-
-  private handleGetLogs(command: SweetlinkCommand): SweetlinkResponse {
-    let logs = [...this.consoleLogs];
-
-    if (command.filter) {
-      const filterLower = command.filter.toLowerCase();
-      logs = logs.filter(log =>
-        log.level === filterLower ||
-        log.message.toLowerCase().includes(filterLower)
-      );
-    }
-
-    return {
-      success: true,
-      data: {
-        logs,
-        totalCount: this.consoleLogs.length,
-        filteredCount: logs.length
-      },
-      timestamp: Date.now()
-    };
-  }
-
-  private handleExecJS(command: SweetlinkCommand): SweetlinkResponse {
-    try {
-      if (!command.code) {
-        return {
-          success: false,
-          error: 'Code is required',
-          timestamp: Date.now()
-        };
-      }
-
-      // Execute the code using indirect eval (same security model as original)
-      // Note: This is intentional - exec-js is a debugging feature for dev tools
-      const indirectEval = eval;
-      const result = indirectEval(command.code);
-
-      return {
-        success: true,
-        data: {
-          result: typeof result === 'object' ? JSON.parse(JSON.stringify(result)) : result,
-          type: typeof result
-        },
-        timestamp: Date.now()
-      };
-
-    } catch (error) {
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : 'Execution failed',
-        timestamp: Date.now()
-      };
-    }
-  }
-
-  private setupHmrDetection(): void {
-    console.log('[Sweetlink] Setting up HMR detection for automatic screenshots');
-
-    // Vite HMR detection
-    const viteAfterUpdate = () => this.captureHmrScreenshot('vite');
-    document.addEventListener('vite:afterUpdate', viteAfterUpdate);
-    this.cleanupFunctions.push(() => document.removeEventListener('vite:afterUpdate', viteAfterUpdate));
-
-    // Vite custom event
-    const viteHmrHandler = (event: Event) => {
-      const detail = (event as CustomEvent).detail as { file?: string } | undefined;
-      this.captureHmrScreenshot('vite', detail?.file);
-    };
-    document.addEventListener('vite:hmr', viteHmrHandler);
-    this.cleanupFunctions.push(() => document.removeEventListener('vite:hmr', viteHmrHandler));
-
-    // Remix HMR detection
-    const remixHmrHandler = () => this.captureHmrScreenshot('remix');
-    window.addEventListener('remix-hmr', remixHmrHandler);
-    this.cleanupFunctions.push(() => window.removeEventListener('remix-hmr', remixHmrHandler));
-  }
-
-  private async captureHmrScreenshot(
-    trigger: string,
-    changedFile?: string,
-    hmrMetadata?: HmrScreenshotData['hmrMetadata']
-  ): Promise<void> {
-    if (!this.ws || this.ws.readyState !== WebSocket.OPEN) return;
-    if (!this.verified) return;
-
-    // Debounce rapid HMR events
-    const now = Date.now();
-    if (now - this.lastHmrCaptureTime < this.hmrDebounceMs) {
-      if (this.hmrDebounceTimeout) {
-        clearTimeout(this.hmrDebounceTimeout);
-      }
-      this.hmrDebounceTimeout = setTimeout(() => {
-        this.captureHmrScreenshot(trigger, changedFile, hmrMetadata);
-      }, this.hmrDebounceMs);
-      return;
-    }
-
-    this.lastHmrCaptureTime = now;
-
-    // Wait for DOM to settle
-    await new Promise(resolve => setTimeout(resolve, this.hmrCaptureDelay));
-
-    try {
-      const originalCanvas = await html2canvas(document.body, {
-        logging: false,
-        useCORS: true,
-        allowTaint: true
-      });
-
-      // Scale down for efficiency using shared utility
-      const smallCanvas = scaleCanvas(originalCanvas, { scale: DEFAULT_SCREENSHOT_SCALE });
-      const dataUrl = canvasToDataUrl(smallCanvas, { format: 'jpeg', quality: DEFAULT_SCREENSHOT_QUALITY });
-
-      // Prepare logs
-      const allLogs = [...this.consoleLogs];
-      const errors = allLogs.filter(l => l.level === 'error');
-      const warnings = allLogs.filter(l => l.level === 'warn');
-
-      this.hmrSequence++;
-
-      const hmrData: HmrScreenshotData = {
-        trigger,
-        changedFile,
-        screenshot: dataUrl,
-        url: window.location.href,
-        timestamp: Date.now(),
-        sequenceNumber: this.hmrSequence,
-        logs: {
-          all: allLogs,
-          errors,
-          warnings,
-          sinceLastCapture: allLogs.length
-        },
-        hmrMetadata
-      };
-
-      this.ws.send(JSON.stringify({
-        type: 'hmr-screenshot',
-        data: hmrData
-      }));
-
-      console.log(`[Sweetlink] HMR screenshot captured (${trigger})`);
-
-    } catch (error) {
-      console.error('[Sweetlink] HMR screenshot capture failed:', error);
     }
   }
 }
