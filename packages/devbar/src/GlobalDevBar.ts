@@ -1325,12 +1325,12 @@ export class GlobalDevBar {
     const errorCount = earlyConsoleCapture.logs.filter(log => log.level === 'error').length;
     const warningCount = earlyConsoleCapture.logs.filter(log => log.level === 'warn').length;
 
-    // Position styles for collapsed state
+    // Position styles for collapsed state - matches expanded state positions exactly
     const collapsedPositions: Record<string, { bottom?: string; left?: string; top?: string; right?: string; transform?: string }> = {
-      'bottom-left': { bottom: '20px', left: '94px' },
-      'bottom-right': { bottom: '20px', right: '30px' },
-      'top-left': { top: '20px', left: '94px' },
-      'top-right': { top: '20px', right: '30px' },
+      'bottom-left': { bottom: '20px', left: '80px' },
+      'bottom-right': { bottom: '20px', right: '16px' },
+      'top-left': { top: '20px', left: '80px' },
+      'top-right': { top: '20px', right: '16px' },
       'bottom-center': { bottom: '12px', left: '50%', transform: 'translateX(-50%)' },
     };
     const posStyle = collapsedPositions[position] ?? collapsedPositions['bottom-left'];
@@ -1348,13 +1348,15 @@ export class GlobalDevBar {
     wrapper.style.right = '';
     wrapper.style.transform = '';
 
+    // Use same height as expanded bar (padding + content height)
+    // Expanded uses padding: 0.5rem 0.75rem and 22px button height
     Object.assign(wrapper.style, {
       position: 'fixed',
       ...posStyle,
       zIndex: '9999',
       backgroundColor: 'rgba(17, 24, 39, 0.95)',
       border: `1px solid ${accentColor}`,
-      borderRadius: '50%',
+      borderRadius: '12px', // Match expanded bar border radius
       color: accentColor,
       boxShadow: `0 4px 12px rgba(0, 0, 0, 0.3), 0 0 0 1px ${accentColor}1A`,
       backdropFilter: 'blur(8px)',
@@ -1363,8 +1365,10 @@ export class GlobalDevBar {
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
-      width: '33px',
-      height: '33px',
+      gap: '0.5rem',
+      // Match expanded bar dimensions: padding 0.5rem 0.75rem with content
+      padding: '0.5rem 0.75rem',
+      boxSizing: 'border-box',
       animation: 'devbar-collapse 150ms ease-out'
     });
 
@@ -1380,53 +1384,50 @@ export class GlobalDevBar {
       height: '6px',
       borderRadius: '50%',
       backgroundColor: this.sweetlinkConnected ? '#10b981' : '#6b7280',
-      boxShadow: this.sweetlinkConnected ? '0 0 6px #10b981' : 'none'
+      boxShadow: this.sweetlinkConnected ? '0 0 6px #10b981' : 'none',
+      flexShrink: '0'
     });
     wrapper.appendChild(dot);
 
-    // Error badge
+    // Error badge (inline, not absolute)
     if (errorCount > 0) {
       const errorBadge = document.createElement('span');
       Object.assign(errorBadge.style, {
-        position: 'absolute',
-        top: '-4px',
-        right: warningCount > 0 ? '10px' : '-4px',
-        minWidth: '14px',
-        height: '14px',
-        padding: '0 3px',
+        minWidth: '18px',
+        height: '18px',
+        padding: '0 5px',
         borderRadius: '9999px',
         backgroundColor: 'rgba(239, 68, 68, 0.9)',
         color: '#fff',
-        fontSize: '0.5rem',
+        fontSize: '0.625rem',
         fontWeight: '600',
         display: 'flex',
         alignItems: 'center',
-        justifyContent: 'center'
+        justifyContent: 'center',
+        flexShrink: '0'
       });
-      errorBadge.textContent = errorCount > 99 ? '!' : String(errorCount);
+      errorBadge.textContent = errorCount > 99 ? '99+' : String(errorCount);
       wrapper.appendChild(errorBadge);
     }
 
-    // Warning badge
+    // Warning badge (inline, not absolute)
     if (warningCount > 0) {
       const warnBadge = document.createElement('span');
       Object.assign(warnBadge.style, {
-        position: 'absolute',
-        top: '-4px',
-        right: '-4px',
-        minWidth: '14px',
-        height: '14px',
-        padding: '0 3px',
+        minWidth: '18px',
+        height: '18px',
+        padding: '0 5px',
         borderRadius: '9999px',
         backgroundColor: 'rgba(245, 158, 11, 0.9)',
         color: '#fff',
-        fontSize: '0.5rem',
+        fontSize: '0.625rem',
         fontWeight: '600',
         display: 'flex',
         alignItems: 'center',
-        justifyContent: 'center'
+        justifyContent: 'center',
+        flexShrink: '0'
       });
-      warnBadge.textContent = warningCount > 99 ? '!' : String(warningCount);
+      warnBadge.textContent = warningCount > 99 ? '99+' : String(warningCount);
       wrapper.appendChild(warnBadge);
     }
   }

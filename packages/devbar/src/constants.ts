@@ -512,7 +512,7 @@ export const TOOLTIP_STYLES = `
   50% { opacity: 0.5; }
 }
 @keyframes devbar-collapse {
-  0% { transform: scale(0.8); opacity: 0; }
+  0% { transform: scale(0.95); opacity: 0; }
   100% { transform: scale(1); opacity: 1; }
 }
 /* Main row - single row by default (SM, MD, LG, XL) */
