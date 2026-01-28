@@ -2028,16 +2028,16 @@ export class GlobalDevBar {
 
     mainRow.appendChild(statusRow);
 
-    // Action buttons - use CSS class for responsive layout
+    // Action buttons - always render container for consistent height
+    const actionsContainer = document.createElement('div');
+    actionsContainer.className = 'devbar-actions';
     if (showScreenshot) {
-      const actionsContainer = document.createElement('div');
-      actionsContainer.className = 'devbar-actions';
       actionsContainer.appendChild(this.createScreenshotButton(accentColor));
-      actionsContainer.appendChild(this.createAIReviewButton());
-      actionsContainer.appendChild(this.createOutlineButton());
-      actionsContainer.appendChild(this.createSchemaButton());
-      mainRow.appendChild(actionsContainer);
     }
+    actionsContainer.appendChild(this.createAIReviewButton());
+    actionsContainer.appendChild(this.createOutlineButton());
+    actionsContainer.appendChild(this.createSchemaButton());
+    mainRow.appendChild(actionsContainer);
 
     wrapper.appendChild(mainRow);
 
