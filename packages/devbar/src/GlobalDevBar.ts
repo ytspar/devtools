@@ -197,8 +197,19 @@ export class GlobalDevBar {
       },
       showScreenshot: options.showScreenshot ?? true,
       showConsoleBadges: options.showConsoleBadges ?? true,
+      showTooltips: options.showTooltips ?? true,
       sizeOverrides: options.sizeOverrides,
     };
+  }
+
+  /**
+   * Get tooltip class name(s) if tooltips are enabled, otherwise empty string
+   */
+  private tooltipClass(direction: 'left' | 'right' = 'left', ...additionalClasses: string[]): string {
+    if (!this.options.showTooltips) {
+      return additionalClasses.join(' ');
+    }
+    return ['devbar-tooltip', `devbar-tooltip-${direction}`, ...additionalClasses].join(' ');
   }
 
   // ============================================================================
@@ -1339,7 +1350,7 @@ export class GlobalDevBar {
     const posStyle = collapsedPositions[position] ?? collapsedPositions['bottom-left'];
 
     const wrapper = this.container;
-    wrapper.className = 'devbar-tooltip devbar-tooltip-left devbar-collapse';
+    wrapper.className = this.tooltipClass('left', 'devbar-collapse');
     wrapper.setAttribute('data-tooltip',
       `Click to expand DevBar${this.sweetlinkConnected ? ' (Sweetlink connected)' : ' (Sweetlink not connected)'}${errorCount > 0 ? `\n${errorCount} console error${errorCount === 1 ? '' : 's'}` : ''}`
     );
@@ -1512,7 +1523,7 @@ export class GlobalDevBar {
 
     // Connection indicator (click to collapse)
     const connIndicator = document.createElement('span');
-    connIndicator.className = 'devbar-tooltip devbar-tooltip-left devbar-clickable';
+    connIndicator.className = this.tooltipClass('left', 'devbar-clickable');
     connIndicator.setAttribute('data-tooltip', this.sweetlinkConnected ? 'Sweetlink connected (click to minimize)' : 'Sweetlink disconnected (click to minimize)');
     Object.assign(connIndicator.style, {
       width: '12px',
@@ -1574,7 +1585,7 @@ export class GlobalDevBar {
       const breakpointData = TAILWIND_BREAKPOINTS[bp];
 
       const bpSpan = document.createElement('span');
-      bpSpan.className = 'devbar-tooltip devbar-tooltip-left devbar-item';
+      bpSpan.className = this.tooltipClass('left', 'devbar-item');
       Object.assign(bpSpan.style, { opacity: '0.9', cursor: 'default' });
       bpSpan.setAttribute('data-tooltip', `Tailwind Breakpoint: ${bp}\n${breakpointData?.label || ''}\n\nViewport: ${this.breakpointInfo.dimensions}\n\nBreakpoints:\nbase: <640px | sm: >=640px\nmd: >=768px | lg: >=1024px\nxl: >=1280px | 2xl: >=1536px`);
 
@@ -1600,7 +1611,7 @@ export class GlobalDevBar {
       if (showMetrics.fcp) {
         addSeparator();
         const fcpSpan = document.createElement('span');
-        fcpSpan.className = 'devbar-tooltip devbar-tooltip-left devbar-item';
+        fcpSpan.className = this.tooltipClass('left', 'devbar-item');
         Object.assign(fcpSpan.style, { opacity: '0.85', cursor: 'default' });
         fcpSpan.setAttribute('data-tooltip', 'First Contentful Paint (FCP): Time until first text/image renders.\n\nGood: <1.8s\nNeeds work: 1.8-3s\nPoor: >3s');
         fcpSpan.textContent = `FCP ${this.perfStats.fcp}`;
@@ -1610,7 +1621,7 @@ export class GlobalDevBar {
       if (showMetrics.lcp) {
         addSeparator();
         const lcpSpan = document.createElement('span');
-        lcpSpan.className = 'devbar-tooltip devbar-tooltip-left devbar-item';
+        lcpSpan.className = this.tooltipClass('left', 'devbar-item');
         Object.assign(lcpSpan.style, { opacity: '0.85', cursor: 'default' });
         lcpSpan.setAttribute('data-tooltip', 'Largest Contentful Paint (LCP): Time until largest visible element renders.\n\nGood: <2.5s\nNeeds work: 2.5-4s\nPoor: >4s');
         lcpSpan.textContent = `LCP ${this.perfStats.lcp}`;
@@ -1620,7 +1631,7 @@ export class GlobalDevBar {
       if (showMetrics.pageSize) {
         addSeparator();
         const sizeSpan = document.createElement('span');
-        sizeSpan.className = 'devbar-tooltip devbar-tooltip-left devbar-item';
+        sizeSpan.className = this.tooltipClass('left', 'devbar-item');
         Object.assign(sizeSpan.style, { opacity: '0.7', cursor: 'default' });
         sizeSpan.setAttribute('data-tooltip', 'Total page size (compressed/transferred).\nIncludes HTML, CSS, JS, images, and other resources.');
         sizeSpan.textContent = this.perfStats.totalSize;
@@ -1727,7 +1738,7 @@ export class GlobalDevBar {
     const isActive = this.consoleFilter === type;
 
     const badge = document.createElement('span');
-    badge.className = 'devbar-tooltip devbar-tooltip-right devbar-badge';
+    badge.className = this.tooltipClass('right', 'devbar-badge');
     badge.setAttribute('data-tooltip', `${count} console ${label}${count === 1 ? '' : 's'} (click to view)`);
     Object.assign(badge.style, {
       display: 'flex',
@@ -1758,7 +1769,7 @@ export class GlobalDevBar {
   private createScreenshotButton(accentColor: string): HTMLButtonElement {
     const btn = document.createElement('button');
     btn.type = 'button';
-    btn.className = 'devbar-tooltip devbar-tooltip-right';
+    btn.className = this.tooltipClass('right');
 
     const hasSuccessState = this.copiedToClipboard || this.copiedPath || this.lastScreenshot;
 
@@ -1841,7 +1852,7 @@ export class GlobalDevBar {
   private createAIReviewButton(): HTMLButtonElement {
     const btn = document.createElement('button');
     btn.type = 'button';
-    btn.className = 'devbar-tooltip devbar-tooltip-right';
+    btn.className = this.tooltipClass('right');
 
     const tooltip = this.designReviewInProgress
       ? 'AI Design Review in progress...'
@@ -1889,7 +1900,7 @@ export class GlobalDevBar {
   private createOutlineButton(): HTMLButtonElement {
     const btn = document.createElement('button');
     btn.type = 'button';
-    btn.className = 'devbar-tooltip devbar-tooltip-right';
+    btn.className = this.tooltipClass('right');
 
     const tooltip = this.lastOutline
       ? `Outline saved to:\n${this.lastOutline}`
@@ -1913,7 +1924,7 @@ export class GlobalDevBar {
   private createSchemaButton(): HTMLButtonElement {
     const btn = document.createElement('button');
     btn.type = 'button';
-    btn.className = 'devbar-tooltip devbar-tooltip-right';
+    btn.className = this.tooltipClass('right');
 
     const tooltip = this.lastSchema
       ? `Schema saved to:\n${this.lastSchema}`

@@ -132,6 +132,8 @@ export interface GlobalDevBarOptions {
   showScreenshot?: boolean;
   /** Whether to show console error/warning badges. Default: true */
   showConsoleBadges?: boolean;
+  /** Whether to show tooltips on hover. Default: true */
+  showTooltips?: boolean;
   /** Size overrides for special layouts (e.g., when other dev bars are present) */
   sizeOverrides?: {
     /** Custom width (CSS value). Default: calc(100vw - 140px) for centered, fit-content otherwise */
