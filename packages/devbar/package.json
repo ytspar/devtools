@@ -1,0 +1,62 @@
+{
+  "name": "@ytspar/devbar",
+  "version": "1.0.0",
+  "type": "module",
+  "private": false,
+  "description": "Development toolbar and utilities with Sweetlink integration - pure vanilla JS, no framework dependencies",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ytspar/devtools.git",
+    "directory": "packages/devbar"
+  },
+  "keywords": [
+    "development",
+    "debug",
+    "devtools",
+    "sweetlink",
+    "vanilla-js"
+  ],
+  "author": "ytspar",
+  "license": "MIT",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./GlobalDevBar": {
+      "types": "./dist/GlobalDevBar.d.ts",
+      "import": "./dist/GlobalDevBar.js",
+      "default": "./dist/GlobalDevBar.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf dist"
+  },
+  "peerDependencies": {
+    "@ytspar/sweetlink": "^1.0.0 || ^2.0.0"
+  },
+  "peerDependenciesMeta": {
+    "@ytspar/sweetlink": {
+      "optional": true
+    }
+  },
+  "dependencies": {
+    "axe-core": "^4.10.2",
+    "html2canvas-pro": "^1.5.8"
+  },
+  "devDependencies": {
+    "@ytspar/sweetlink": "workspace:*",
+    "@types/node": "^22.0.0",
+    "typescript": "^5.0.0"
+  }
+}

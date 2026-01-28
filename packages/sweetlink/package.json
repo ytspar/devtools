@@ -1,0 +1,102 @@
+{
+  "name": "@ytspar/sweetlink",
+  "version": "1.0.0",
+  "description": "Autonomous development toolkit for AI agents - screenshots, DOM queries, console logs, and JavaScript execution via WebSocket and Chrome DevTools Protocol",
+  "keywords": [
+    "autonomous-development",
+    "ai-agents",
+    "screenshot",
+    "websocket",
+    "chrome-devtools-protocol",
+    "development-tools",
+    "debugging",
+    "vanilla-js"
+  ],
+  "author": "ytspar",
+  "license": "MIT",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./types": {
+      "types": "./dist/types.d.ts",
+      "import": "./dist/types.js"
+    },
+    "./server": {
+      "types": "./dist/server.d.ts",
+      "import": "./dist/server.js"
+    },
+    "./cli": {
+      "types": "./dist/cli.d.ts",
+      "import": "./dist/cli.js"
+    },
+    "./browser": {
+      "types": "./dist/browser.d.ts",
+      "import": "./dist/browser.js"
+    },
+    "./browser/consoleCapture": {
+      "types": "./dist/browser/consoleCapture.d.ts",
+      "import": "./dist/browser/consoleCapture.js"
+    },
+    "./browser/screenshotUtils": {
+      "types": "./dist/browser/screenshotUtils.d.ts",
+      "import": "./dist/browser/screenshotUtils.js"
+    },
+    "./urlUtils": {
+      "types": "./dist/urlUtils.d.ts",
+      "import": "./dist/urlUtils.js"
+    },
+    "./cdp": {
+      "types": "./dist/cdp.d.ts",
+      "import": "./dist/cdp.js"
+    }
+  },
+  "bin": {
+    "sweetlink": "./dist/cli/sweetlink.js",
+    "sweetlink-dev": "./dist/cli/sweetlink-dev.js"
+  },
+  "files": [
+    "dist",
+    "claude-context",
+    "scripts",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf dist claude-context"
+  },
+  "peerDependencies": {
+    "playwright": "^1.40.0"
+  },
+  "peerDependenciesMeta": {
+    "playwright": {
+      "optional": true
+    }
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.71.2",
+    "dotenv": "^17.2.3",
+    "html2canvas-pro": "^1.5.13",
+    "puppeteer-core": "^24.26.1",
+    "ws": "^8.18.3"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@types/ws": "^8.18.1",
+    "playwright": "^1.55.0",
+    "typescript": "^5.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ytspar/devtools.git",
+    "directory": "packages/sweetlink"
+  },
+  "bugs": {
+    "url": "https://github.com/ytspar/devtools/issues"
+  },
+  "homepage": "https://github.com/ytspar/devtools/tree/main/packages/sweetlink#readme"
+}

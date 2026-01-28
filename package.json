@@ -1,0 +1,17 @@
+{
+  "name": "@ytspar/devtools",
+  "private": true,
+  "description": "Development tools: DevBar and Sweetlink",
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "build": "pnpm -r build",
+    "typecheck": "pnpm -r typecheck",
+    "clean": "pnpm -r clean"
+  },
+  "devDependencies": {
+    "typescript": "^5.0.0"
+  },
+  "packageManager": "pnpm@9.15.9"
+}
