@@ -1,22 +1,20 @@
 /**
  * Playground Controls
  *
- * Interactive controls panel for testing all DevBar options and
- * a breakpoint simulator that constrains the content container.
+ * Interactive controls panel for testing all DevBar options.
  */
 
 import {
   initGlobalDevBar,
   destroyGlobalDevBar,
-  TAILWIND_BREAKPOINTS,
-  type TailwindBreakpoint,
+  COLORS,
   type GlobalDevBarOptions,
 } from '@ytspar/devbar';
 
 // Default options
 const DEFAULT_OPTIONS: Required<Omit<GlobalDevBarOptions, 'sizeOverrides'>> = {
   position: 'bottom-left',
-  accentColor: '#10b981',
+  accentColor: COLORS.primary,
   showMetrics: {
     breakpoint: true,
     fcp: true,
@@ -30,19 +28,7 @@ const DEFAULT_OPTIONS: Required<Omit<GlobalDevBarOptions, 'sizeOverrides'>> = {
 
 // Current state
 let currentOptions = { ...DEFAULT_OPTIONS };
-let currentBreakpoint: TailwindBreakpoint | 'auto' = 'auto';
 let controlsCollapsed = false;
-
-// Breakpoint widths for the simulator
-const BREAKPOINT_WIDTHS: Record<TailwindBreakpoint | 'auto', number | null> = {
-  'auto': null,  // Full width (no constraint)
-  'base': 375,   // Mobile
-  'sm': 640,
-  'md': 768,
-  'lg': 1024,
-  'xl': 1280,
-  '2xl': 1536,
-};
 
 /**
  * Initialize playground controls
@@ -51,13 +37,6 @@ export function initPlaygroundControls(): void {
   // Create controls panel
   const panel = createControlsPanel();
   document.body.appendChild(panel);
-
-  // Create breakpoint indicator/selector in top right
-  const bpSelector = createBreakpointSelector();
-  document.body.appendChild(bpSelector);
-
-  // Wrap app content in a resizable container
-  wrapContentContainer();
 
   // Initial devbar setup
   reinitDevBar();
@@ -69,145 +48,6 @@ export function initPlaygroundControls(): void {
 function reinitDevBar(): void {
   destroyGlobalDevBar();
   initGlobalDevBar(currentOptions);
-}
-
-/**
- * Wrap the #app content in a container for breakpoint simulation
- */
-function wrapContentContainer(): void {
-  const app = document.getElementById('app');
-  if (!app) return;
-
-  // Create wrapper
-  const wrapper = document.createElement('div');
-  wrapper.id = 'playground-viewport';
-  wrapper.className = 'playground-viewport';
-
-  // Move app content into wrapper
-  app.parentNode?.insertBefore(wrapper, app);
-  wrapper.appendChild(app);
-
-  // Apply initial breakpoint
-  updateViewportWidth();
-}
-
-/**
- * Update the viewport container width based on selected breakpoint
- */
-function updateViewportWidth(): void {
-  const wrapper = document.getElementById('playground-viewport');
-  if (!wrapper) return;
-
-  const width = BREAKPOINT_WIDTHS[currentBreakpoint];
-
-  if (width === null) {
-    wrapper.style.maxWidth = '';
-    wrapper.style.margin = '';
-  } else {
-    wrapper.style.maxWidth = `${width}px`;
-    wrapper.style.margin = '0 auto';
-  }
-
-  // Update breakpoint indicator
-  updateBreakpointIndicator();
-}
-
-/**
- * Update the breakpoint indicator display
- */
-function updateBreakpointIndicator(): void {
-  const indicator = document.getElementById('bp-current');
-  if (!indicator) return;
-
-  if (currentBreakpoint === 'auto') {
-    // Show actual window breakpoint
-    const width = window.innerWidth;
-    let bp: TailwindBreakpoint = 'base';
-    if (width >= TAILWIND_BREAKPOINTS['2xl'].min) bp = '2xl';
-    else if (width >= TAILWIND_BREAKPOINTS.xl.min) bp = 'xl';
-    else if (width >= TAILWIND_BREAKPOINTS.lg.min) bp = 'lg';
-    else if (width >= TAILWIND_BREAKPOINTS.md.min) bp = 'md';
-    else if (width >= TAILWIND_BREAKPOINTS.sm.min) bp = 'sm';
-    indicator.textContent = `${bp.toUpperCase()} (${width}px)`;
-  } else {
-    const width = BREAKPOINT_WIDTHS[currentBreakpoint];
-    indicator.textContent = `${currentBreakpoint.toUpperCase()} (${width}px)`;
-  }
-}
-
-/**
- * Create the breakpoint selector in top right
- */
-function createBreakpointSelector(): HTMLElement {
-  const container = document.createElement('div');
-  container.className = 'bp-selector';
-
-  // Current breakpoint display
-  const current = document.createElement('div');
-  current.id = 'bp-current';
-  current.className = 'bp-current';
-  container.appendChild(current);
-
-  // Breakpoint buttons
-  const buttons = document.createElement('div');
-  buttons.className = 'bp-buttons';
-
-  // Auto button
-  const autoBtn = createBpButton('auto', 'AUTO');
-  buttons.appendChild(autoBtn);
-
-  // Separator
-  const sep = document.createElement('span');
-  sep.className = 'bp-sep';
-  sep.textContent = '|';
-  buttons.appendChild(sep);
-
-  // Breakpoint buttons
-  const bps: TailwindBreakpoint[] = ['base', 'sm', 'md', 'lg', 'xl', '2xl'];
-  bps.forEach(bp => {
-    const btn = createBpButton(bp, bp.toUpperCase());
-    buttons.appendChild(btn);
-  });
-
-  container.appendChild(buttons);
-
-  // Listen for window resize to update auto breakpoint
-  window.addEventListener('resize', () => {
-    if (currentBreakpoint === 'auto') {
-      updateBreakpointIndicator();
-    }
-  });
-
-  return container;
-}
-
-/**
- * Create a breakpoint button
- */
-function createBpButton(bp: TailwindBreakpoint | 'auto', label: string): HTMLButtonElement {
-  const btn = document.createElement('button');
-  btn.type = 'button';
-  btn.className = `bp-btn ${bp === currentBreakpoint ? 'active' : ''}`;
-  btn.dataset.bp = bp;
-  btn.textContent = label;
-
-  btn.onclick = () => {
-    currentBreakpoint = bp;
-    updateViewportWidth();
-    updateBpButtonStates();
-  };
-
-  return btn;
-}
-
-/**
- * Update breakpoint button active states
- */
-function updateBpButtonStates(): void {
-  document.querySelectorAll('.bp-btn').forEach(btn => {
-    const bpBtn = btn as HTMLButtonElement;
-    bpBtn.classList.toggle('active', bpBtn.dataset.bp === currentBreakpoint);
-  });
 }
 
 /**
@@ -307,7 +147,6 @@ function createControlsPanel(): HTMLElement {
   resetBtn.onclick = () => {
     currentOptions = { ...DEFAULT_OPTIONS };
     reinitDevBar();
-    // Update all controls to match
     updateControlsUI();
   };
   content.appendChild(resetBtn);
@@ -319,7 +158,6 @@ function createControlsPanel(): HTMLElement {
 
 /**
  * Position values matching GlobalDevBar positioning
- * These use CSS custom properties for the mini-map scaling
  */
 const POSITION_CONFIG: Record<string, { top?: string; bottom?: string; left?: string; right?: string; transform?: string }> = {
   'top-left': { top: '10%', left: '12%' },

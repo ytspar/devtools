@@ -808,7 +808,7 @@ body {
   -webkit-appearance: none;
   width: 14px;
   height: 14px;
-  border: 1px solid rgba(16, 185, 129, 0.4);
+  border: 1px solid var(--devbar-color-border);
   border-radius: 3px;
   background: var(--devbar-color-bg-input);
   cursor: pointer;
@@ -828,7 +828,7 @@ body {
   top: 1px;
   width: 4px;
   height: 7px;
-  border: solid #0a0f1a;
+  border: solid var(--devbar-color-bg);
   border-width: 0 2px 2px 0;
   transform: rotate(45deg);
 }
