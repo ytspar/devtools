@@ -45,10 +45,19 @@ export type { SweetlinkCommand, SweetlinkResponse, ConsoleLog, HmrScreenshotData
 let wss: WebSocketServer | null = null;
 let activePort: number | null = null;
 let associatedAppPort: number | null = null;
+let projectRoot: string | null = null;
 const clients = new Map<WebSocket, { type: 'browser' | 'cli'; id: string; origin?: string }>();
 
 // HMR screenshot sequence counter
 let hmrSequenceNumber = 0;
+
+/**
+ * Get the project root directory (where the server was started)
+ * This is captured at server initialization time for consistency
+ */
+export function getProjectRoot(): string {
+  return projectRoot ?? process.cwd();
+}
 
 export interface InitSweetlinkOptions {
   port: number;
@@ -75,6 +84,10 @@ export function initSweetlink(options: InitSweetlinkOptions): Promise<WebSocketS
     const maxRetries = options.maxPortRetries ?? 10;
     let currentPort = options.port;
     let attempts = 0;
+
+    // Capture project root at initialization time (before any cwd changes)
+    projectRoot = process.cwd();
+    console.log(`[Sweetlink] Project root: ${projectRoot}`);
 
     // Store the associated app port for origin validation
     associatedAppPort = options.appPort ?? null;

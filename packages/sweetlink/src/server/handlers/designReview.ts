@@ -19,6 +19,7 @@ import {
   CLAUDE_MAX_TOKENS,
   CLAUDE_PRICING,
 } from '../anthropic.js';
+import { getProjectRoot } from '../index.js';
 
 /** Design review prompt for Claude Vision */
 export const DESIGN_REVIEW_PROMPT = `You are an expert UI/UX designer and frontend developer reviewing a web application screenshot.
@@ -98,8 +99,8 @@ export async function handleDesignReviewScreenshot(data: {
 }): Promise<DesignReviewResult> {
   const { screenshot, logs, url, timestamp, width, height } = data;
 
-  // Create directory if it doesn't exist
-  const dir = join(process.cwd(), SCREENSHOT_DIR);
+  // Create directory if it doesn't exist (relative to project root captured at server start)
+  const dir = join(getProjectRoot(), SCREENSHOT_DIR);
   await fs.mkdir(dir, { recursive: true });
 
   // Generate filename with timestamp using shared utility

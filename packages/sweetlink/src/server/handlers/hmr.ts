@@ -11,6 +11,7 @@ import {
   generateBaseFilename,
   HMR_SCREENSHOT_DIR,
 } from '../../urlUtils.js';
+import { getProjectRoot } from '../index.js';
 
 export interface HmrScreenshotResult {
   screenshotPath: string;
@@ -29,8 +30,8 @@ export interface HmrScreenshotResult {
 export async function handleHmrScreenshot(data: HmrScreenshotData): Promise<HmrScreenshotResult> {
   const { screenshot, url, timestamp, logs, trigger, changedFile, hmrMetadata } = data;
 
-  // Create directory if it doesn't exist
-  const dir = join(process.cwd(), HMR_SCREENSHOT_DIR);
+  // Create directory if it doesn't exist (relative to project root captured at server start)
+  const dir = join(getProjectRoot(), HMR_SCREENSHOT_DIR);
   await fs.mkdir(dir, { recursive: true });
 
   // Generate filename with timestamp and trigger using shared utility

@@ -11,6 +11,7 @@ import {
   generateBaseFilename,
   SCREENSHOT_DIR,
 } from '../../urlUtils.js';
+import { getProjectRoot } from '../index.js';
 
 export interface OutlineSaveResult {
   outlinePath: string;
@@ -28,8 +29,8 @@ export async function handleSaveOutline(data: {
 }): Promise<OutlineSaveResult> {
   const { markdown, url, title, timestamp } = data;
 
-  // Create directory if it doesn't exist
-  const dir = join(process.cwd(), SCREENSHOT_DIR);
+  // Create directory if it doesn't exist (relative to project root captured at server start)
+  const dir = join(getProjectRoot(), SCREENSHOT_DIR);
   await fs.mkdir(dir, { recursive: true });
 
   // Generate a slug from URL path or title and create filename with shared utility
