@@ -87,7 +87,7 @@ function createControlsPanel(): HTMLElement {
   content.appendChild(createPositionSelector(
     currentOptions.position ?? 'bottom-left',
     (value) => {
-      currentOptions.position = value as GlobalDevBarOptions['position'];
+      currentOptions.position = value as typeof currentOptions.position;
       reinitDevBar();
       updatePositionSelector();
     }
