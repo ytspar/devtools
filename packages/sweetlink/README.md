@@ -53,118 +53,82 @@ pnpm add @ytspar/sweetlink@canary
 
 ## Quick Start
 
-### 1. Add Sweetlink Server to Your Dev Setup
+### For Vite Apps (Recommended)
 
-#### For Remix Apps
-
-```typescript
-// server.ts or entry.server.tsx
-import { initSweetlink } from '@ytspar/sweetlink';
-
-if (process.env.NODE_ENV === 'development') {
-  const port = parseInt(process.env.SWEETLINK_WS_PORT || '9223', 10);
-  initSweetlink({ port });
-  console.log(`[Sweetlink] WebSocket server started on ws://localhost:${port}`);
-}
-```
-
-#### For Next.js Apps
-
-```typescript
-// next.config.js
-const { initSweetlink } = require('@ytspar/sweetlink');
-
-if (process.env.NODE_ENV === 'development') {
-  initSweetlink({ port: 9223 });
-}
-
-module.exports = {
-  // your next config...
-}
-```
-
-#### For Vite Apps
+Just add the plugin - zero configuration needed:
 
 ```typescript
 // vite.config.ts
 import { defineConfig } from 'vite';
-import { initSweetlink } from '@ytspar/sweetlink';
-
-if (process.env.NODE_ENV === 'development') {
-  initSweetlink({ port: 9223 });
-}
+import { sweetlink } from '@ytspar/sweetlink/vite';
 
 export default defineConfig({
-  // your vite config...
+  plugins: [sweetlink()]
 });
 ```
 
-### 2. Add Browser Bridge Component
+That's it! The plugin automatically:
+- Starts the Sweetlink server when Vite starts
+- Detects Vite's port and configures everything
+- DevBar connects automatically
 
-#### Basic Usage (Standard Tailwind Colors)
+### For Any Node.js App (Express, Next.js, Remix, etc.)
+
+Add one line at the top of your server file:
 
 ```typescript
-// app/root.tsx (Remix) or _app.tsx (Next.js) or App.tsx (React)
-import { SweetlinkBridge } from '@ytspar/sweetlink/browser';
+// server.ts, app.ts, or entry point
+import '@ytspar/sweetlink/auto';
 
-export default function App() {
-  return (
-    <>
-      {/* Your app content */}
-      {process.env.NODE_ENV === 'development' && <SweetlinkBridge />}
-    </>
-  );
+// Your app code...
+```
+
+This automatically:
+- Starts Sweetlink in development mode only
+- Reads port from `process.env.PORT` (or defaults to 3000)
+- DevBar connects automatically
+
+#### With Explicit Configuration
+
+```typescript
+import { startSweetlink } from '@ytspar/sweetlink/auto';
+
+startSweetlink({ appPort: 3000 });
+```
+
+### Using DevBar (Browser UI)
+
+Add DevBar to your app for the screenshot button and dev toolbar:
+
+```typescript
+// app/root.tsx, _app.tsx, or App.tsx
+import { initGlobalDevBar } from '@ytspar/devbar';
+
+if (process.env.NODE_ENV === 'development') {
+  initGlobalDevBar();
 }
 ```
 
-#### Custom Theme Colors
+DevBar automatically connects to Sweetlink - no configuration needed.
 
-```typescript
-import { SweetlinkBridge } from '@ytspar/sweetlink/browser';
+### CLI Usage
 
-export default function App() {
-  return (
-    <>
-      {/* Your app content */}
-      {process.env.NODE_ENV === 'development' && (
-        <SweetlinkBridge
-          connectedStyles="bg-terminal-green/20 border-terminal-green text-terminal-green"
-          disconnectedStyles="bg-gray-700/20 border-gray-600 text-gray-400"
-        />
-      )}
-    </>
-  );
-}
-```
-
-### 3. Add CLI Scripts to package.json
+Add to your package.json for CLI access:
 
 ```json
 {
   "scripts": {
-    "dev": "run-p dev:app sweetlink:dev",
-    "dev:app": "remix dev",
-    "sweetlink:dev": "sweetlink-dev",
     "sweetlink": "sweetlink"
-  },
-  "devDependencies": {
-    "npm-run-all": "^4.1.5"
   }
 }
 ```
 
-### 4. Start Development
+Then use:
 
 ```bash
-pnpm dev
-```
-
-You should see:
-
-```
-[Sweetlink] WebSocket server started on ws://localhost:9223
-💿 Remix App Server started at http://localhost:3000
-[Sweetlink] Connected to server
+pnpm sweetlink screenshot
+pnpm sweetlink logs
+pnpm sweetlink query --selector "h1"
 ```
 
 ## CLI Usage

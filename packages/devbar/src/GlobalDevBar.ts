@@ -2306,8 +2306,13 @@ export class GlobalDevBar {
   private createSettingsButton(): HTMLButtonElement {
     const btn = document.createElement('button');
     btn.type = 'button';
-    btn.className = this.tooltipClass('right');
-    btn.setAttribute('data-tooltip', 'Settings (Cmd+Shift+M: toggle compact)');
+
+    // Attach HTML tooltip
+    this.attachButtonTooltip(btn, COLORS.textSecondary, (_tooltip, h) => {
+      h.addTitle('Settings');
+      h.addSectionHeader('Keyboard');
+      h.addShortcut('Cmd/Ctrl+Shift+M', 'Toggle compact mode');
+    });
 
     const isActive = this.showSettingsPopover;
     const color = COLORS.textSecondary;
@@ -3622,6 +3627,211 @@ export class GlobalDevBar {
     });
   }
 
+  /** Add a keyboard shortcut row to tooltip */
+  private addTooltipShortcut(container: HTMLElement, key: string, description: string): void {
+    const row = document.createElement('div');
+    Object.assign(row.style, {
+      display: 'flex',
+      gap: '8px',
+      alignItems: 'baseline',
+    });
+
+    const keySpan = document.createElement('span');
+    Object.assign(keySpan.style, {
+      color: COLORS.textMuted,
+      fontSize: '0.625rem',
+      minWidth: '90px',
+    });
+    keySpan.textContent = key;
+    row.appendChild(keySpan);
+
+    const descSpan = document.createElement('span');
+    Object.assign(descSpan.style, { color: COLORS.text });
+    descSpan.textContent = description;
+    row.appendChild(descSpan);
+
+    container.appendChild(row);
+  }
+
+  /** Add a warning message to tooltip */
+  private addTooltipWarning(container: HTMLElement, text: string): void {
+    const warning = document.createElement('div');
+    Object.assign(warning.style, {
+      display: 'flex',
+      alignItems: 'flex-start',
+      gap: '6px',
+      marginTop: '8px',
+      padding: '6px 8px',
+      backgroundColor: `${COLORS.warning}15`,
+      border: `1px solid ${COLORS.warning}30`,
+      borderRadius: '4px',
+      fontSize: '0.625rem',
+    });
+
+    const icon = document.createElement('span');
+    icon.textContent = '⚠';
+    Object.assign(icon.style, { color: COLORS.warning, flexShrink: '0' });
+    warning.appendChild(icon);
+
+    const textSpan = document.createElement('span');
+    Object.assign(textSpan.style, { color: COLORS.warning });
+    textSpan.textContent = text;
+    warning.appendChild(textSpan);
+
+    container.appendChild(warning);
+  }
+
+  /** Add a success status message to tooltip */
+  private addTooltipSuccess(container: HTMLElement, text: string, subtext?: string): void {
+    const status = document.createElement('div');
+    Object.assign(status.style, {
+      display: 'flex',
+      alignItems: 'flex-start',
+      gap: '6px',
+      padding: '6px 8px',
+      backgroundColor: `${COLORS.primary}15`,
+      border: `1px solid ${COLORS.primary}30`,
+      borderRadius: '4px',
+    });
+
+    const icon = document.createElement('span');
+    icon.textContent = '✓';
+    Object.assign(icon.style, { color: COLORS.primary, fontWeight: '600', flexShrink: '0' });
+    status.appendChild(icon);
+
+    const textContainer = document.createElement('div');
+    const mainText = document.createElement('div');
+    Object.assign(mainText.style, { color: COLORS.primary, fontWeight: '500' });
+    mainText.textContent = text;
+    textContainer.appendChild(mainText);
+
+    if (subtext) {
+      const sub = document.createElement('div');
+      Object.assign(sub.style, {
+        color: COLORS.textMuted,
+        fontSize: '0.625rem',
+        marginTop: '2px',
+        wordBreak: 'break-all',
+      });
+      sub.textContent = subtext;
+      textContainer.appendChild(sub);
+    }
+
+    status.appendChild(textContainer);
+    container.appendChild(status);
+  }
+
+  /** Add an error status message to tooltip */
+  private addTooltipError(container: HTMLElement, title: string, message: string): void {
+    const status = document.createElement('div');
+    Object.assign(status.style, {
+      display: 'flex',
+      alignItems: 'flex-start',
+      gap: '6px',
+      padding: '6px 8px',
+      backgroundColor: `${COLORS.error}15`,
+      border: `1px solid ${COLORS.error}30`,
+      borderRadius: '4px',
+    });
+
+    const icon = document.createElement('span');
+    icon.textContent = '×';
+    Object.assign(icon.style, {
+      color: COLORS.error,
+      fontWeight: '600',
+      flexShrink: '0',
+      fontSize: '0.875rem',
+    });
+    status.appendChild(icon);
+
+    const textContainer = document.createElement('div');
+    const titleEl = document.createElement('div');
+    Object.assign(titleEl.style, { color: COLORS.error, fontWeight: '500' });
+    titleEl.textContent = title;
+    textContainer.appendChild(titleEl);
+
+    const msgEl = document.createElement('div');
+    Object.assign(msgEl.style, {
+      color: COLORS.textMuted,
+      fontSize: '0.625rem',
+      marginTop: '2px',
+    });
+    msgEl.textContent = message;
+    textContainer.appendChild(msgEl);
+
+    status.appendChild(textContainer);
+    container.appendChild(status);
+  }
+
+  /** Add a "in progress" status to tooltip */
+  private addTooltipProgress(container: HTMLElement, text: string): void {
+    const status = document.createElement('div');
+    Object.assign(status.style, {
+      display: 'flex',
+      alignItems: 'center',
+      gap: '6px',
+      padding: '6px 8px',
+      backgroundColor: `${COLORS.info}15`,
+      border: `1px solid ${COLORS.info}30`,
+      borderRadius: '4px',
+    });
+
+    const spinner = document.createElement('span');
+    spinner.textContent = '~';
+    Object.assign(spinner.style, {
+      color: COLORS.info,
+      fontWeight: '600',
+      animation: 'pulse 1s infinite',
+    });
+    status.appendChild(spinner);
+
+    const textSpan = document.createElement('span');
+    Object.assign(textSpan.style, { color: COLORS.info });
+    textSpan.textContent = text;
+    status.appendChild(textSpan);
+
+    container.appendChild(status);
+  }
+
+  /** Attach a button tooltip with custom title color */
+  private attachButtonTooltip(
+    element: HTMLElement,
+    titleColor: string,
+    buildContent: (tooltip: HTMLDivElement, helpers: {
+      addTitle: (title: string) => void;
+      addDescription: (desc: string) => void;
+      addSectionHeader: (header: string) => void;
+      addShortcut: (key: string, desc: string) => void;
+      addWarning: (text: string) => void;
+      addSuccess: (text: string, subtext?: string) => void;
+      addError: (title: string, message: string) => void;
+      addProgress: (text: string) => void;
+    }) => void
+  ): void {
+    this.attachHtmlTooltip(element, (tooltip) => {
+      const helpers = {
+        addTitle: (title: string) => {
+          const titleEl = document.createElement('div');
+          Object.assign(titleEl.style, {
+            color: titleColor,
+            fontWeight: '600',
+            marginBottom: '4px',
+          });
+          titleEl.textContent = title;
+          tooltip.appendChild(titleEl);
+        },
+        addDescription: (desc: string) => this.addTooltipDescription(tooltip, desc),
+        addSectionHeader: (header: string) => this.addTooltipSectionHeader(tooltip, header),
+        addShortcut: (key: string, desc: string) => this.addTooltipShortcut(tooltip, key, desc),
+        addWarning: (text: string) => this.addTooltipWarning(tooltip, text),
+        addSuccess: (text: string, subtext?: string) => this.addTooltipSuccess(tooltip, text, subtext),
+        addError: (title: string, message: string) => this.addTooltipError(tooltip, title, message),
+        addProgress: (text: string) => this.addTooltipProgress(tooltip, text),
+      };
+      buildContent(tooltip, helpers);
+    });
+  }
+
   /**
    * Create a console badge for error/warning counts
    */
@@ -3668,15 +3878,43 @@ export class GlobalDevBar {
   private createScreenshotButton(accentColor: string): HTMLButtonElement {
     const btn = document.createElement('button');
     btn.type = 'button';
-    btn.className = this.tooltipClass('right');
 
     const hasSuccessState = this.copiedToClipboard || this.copiedPath || this.lastScreenshot;
     const isDisabled = this.capturing;
     // Grey out when not connected (save won't work, but clipboard still does)
     const isGreyedOut = !this.sweetlinkConnected && !hasSuccessState;
 
-    const tooltip = this.getScreenshotTooltip();
-    btn.setAttribute('data-tooltip', tooltip);
+    // Attach HTML tooltip
+    this.attachButtonTooltip(btn, accentColor, (_tooltip, h) => {
+      if (this.copiedToClipboard) {
+        h.addSuccess('Copied to clipboard!');
+        return;
+      }
+      if (this.copiedPath) {
+        h.addSuccess('Path copied to clipboard!');
+        return;
+      }
+      if (this.lastScreenshot) {
+        h.addSuccess('Screenshot saved!', this.lastScreenshot);
+        h.addDescription('Click to copy path');
+        return;
+      }
+
+      h.addTitle('Screenshot');
+
+      if (!this.sweetlinkConnected) {
+        h.addSectionHeader('Actions');
+        h.addShortcut('Shift+Click', 'Copy to clipboard');
+        h.addWarning('Sweetlink not connected. Save to file unavailable.');
+      } else {
+        h.addSectionHeader('Actions');
+        h.addShortcut('Click', 'Save to file');
+        h.addShortcut('Shift+Click', 'Copy to clipboard');
+        h.addSectionHeader('Keyboard');
+        h.addShortcut('Cmd/Ctrl+Shift+S', 'Save');
+        h.addShortcut('Cmd/Ctrl+Shift+C', 'Copy');
+      }
+    });
 
     Object.assign(btn.style, {
       display: 'flex',
@@ -3748,61 +3986,42 @@ export class GlobalDevBar {
     return btn;
   }
 
-  /**
-   * Get the tooltip text for the screenshot button based on current state
-   */
-  private getScreenshotTooltip(): string {
-    if (this.copiedToClipboard) {
-      return 'Copied to clipboard!';
-    }
-    if (this.copiedPath) {
-      return 'Path copied to clipboard!';
-    }
-    if (this.lastScreenshot) {
-      return `Screenshot saved!\n${this.lastScreenshot}\n\nClick to copy path`;
-    }
-
-    if (!this.sweetlinkConnected) {
-      return `Screenshot (Disconnected)\n\nShift+Click: Copy to clipboard\n\n⚠ Sweetlink not connected\nSave to file unavailable`;
-    }
-
-    return `Screenshot\n\nClick: Save to file\nShift+Click: Copy to clipboard\n\nKeyboard:\nCmd/Ctrl+Shift+S: Save\nCmd/Ctrl+Shift+C: Copy`;
-  }
-
-  /**
-   * Get the tooltip text for the AI review button based on current state
-   */
-  private getAIReviewTooltip(): string {
-    if (this.designReviewInProgress) {
-      return 'AI Design Review in progress...';
-    }
-    if (this.designReviewError) {
-      return `Design review failed:\n${this.designReviewError}`;
-    }
-    if (this.lastDesignReview) {
-      return `Design review saved to:\n${this.lastDesignReview}`;
-    }
-
-    const baseTooltip = `AI Design Review\n\nCaptures screenshot and sends to\nClaude for design analysis.\n\nRequires ANTHROPIC_API_KEY.`;
-    return this.sweetlinkConnected
-      ? baseTooltip
-      : `${baseTooltip}\n\nWarning: Sweetlink not connected`;
-  }
-
   private createAIReviewButton(): HTMLButtonElement {
     const btn = document.createElement('button');
     btn.type = 'button';
-    btn.className = this.tooltipClass('right');
-
-    const tooltip = this.getAIReviewTooltip();
-    btn.setAttribute('data-tooltip', tooltip);
 
     const hasError = !!this.designReviewError;
     const isActive = this.designReviewInProgress || !!this.lastDesignReview || hasError;
     const isDisabled = this.designReviewInProgress || !this.sweetlinkConnected;
 
     // Use error color (red) when there's an error, otherwise normal review color
-    const buttonColor = hasError ? '#ef4444' : BUTTON_COLORS.review;
+    const buttonColor = hasError ? COLORS.error : BUTTON_COLORS.review;
+
+    // Attach HTML tooltip
+    this.attachButtonTooltip(btn, buttonColor, (_tooltip, h) => {
+      if (this.designReviewInProgress) {
+        h.addProgress('AI Design Review in progress...');
+        return;
+      }
+      if (this.designReviewError) {
+        h.addError('Design review failed', this.designReviewError);
+        return;
+      }
+      if (this.lastDesignReview) {
+        h.addSuccess('Design review saved!', this.lastDesignReview);
+        return;
+      }
+
+      h.addTitle('AI Design Review');
+      h.addDescription('Captures screenshot and sends to Claude for design analysis.');
+      h.addSectionHeader('Requirements');
+      h.addShortcut('API Key', 'ANTHROPIC_API_KEY');
+
+      if (!this.sweetlinkConnected) {
+        h.addWarning('Sweetlink not connected');
+      }
+    });
+
     Object.assign(btn.style, getButtonStyles(buttonColor, isActive, isDisabled));
     if (!this.sweetlinkConnected) btn.style.opacity = '0.5';
 
@@ -3836,19 +4055,24 @@ export class GlobalDevBar {
   private createOutlineButton(): HTMLButtonElement {
     const btn = document.createElement('button');
     btn.type = 'button';
-    btn.className = this.tooltipClass('right');
-
-    let tooltip: string;
-    if (this.lastOutline) {
-      tooltip = `Outline saved to:\n${this.lastOutline}`;
-    } else if (!this.sweetlinkConnected) {
-      tooltip = `Document Outline\n\nView page heading structure.\n\n⚠ Sweetlink not connected\nSave to file unavailable`;
-    } else {
-      tooltip = `Document Outline\n\nView page heading structure and\nsave as markdown.`;
-    }
-    btn.setAttribute('data-tooltip', tooltip);
 
     const isActive = this.showOutlineModal || !!this.lastOutline;
+
+    // Attach HTML tooltip
+    this.attachButtonTooltip(btn, BUTTON_COLORS.outline, (_tooltip, h) => {
+      if (this.lastOutline) {
+        h.addSuccess('Outline saved!', this.lastOutline);
+        return;
+      }
+
+      h.addTitle('Document Outline');
+      h.addDescription('View page heading structure and save as markdown.');
+
+      if (!this.sweetlinkConnected) {
+        h.addWarning('Sweetlink not connected. Save to file unavailable.');
+      }
+    });
+
     Object.assign(btn.style, getButtonStyles(BUTTON_COLORS.outline, isActive, false));
     btn.onclick = () => this.handleDocumentOutline();
 
@@ -3867,19 +4091,24 @@ export class GlobalDevBar {
   private createSchemaButton(): HTMLButtonElement {
     const btn = document.createElement('button');
     btn.type = 'button';
-    btn.className = this.tooltipClass('right');
-
-    let tooltip: string;
-    if (this.lastSchema) {
-      tooltip = `Schema saved to:\n${this.lastSchema}`;
-    } else if (!this.sweetlinkConnected) {
-      tooltip = `Page Schema\n\nView JSON-LD, Open Graph, and\nother structured data.\n\n⚠ Sweetlink not connected\nSave to file unavailable`;
-    } else {
-      tooltip = `Page Schema\n\nView JSON-LD, Open Graph, and\nother structured data.`;
-    }
-    btn.setAttribute('data-tooltip', tooltip);
 
     const isActive = this.showSchemaModal || !!this.lastSchema;
+
+    // Attach HTML tooltip
+    this.attachButtonTooltip(btn, BUTTON_COLORS.schema, (_tooltip, h) => {
+      if (this.lastSchema) {
+        h.addSuccess('Schema saved!', this.lastSchema);
+        return;
+      }
+
+      h.addTitle('Page Schema');
+      h.addDescription('View JSON-LD, Open Graph, and other structured data.');
+
+      if (!this.sweetlinkConnected) {
+        h.addWarning('Sweetlink not connected. Save to file unavailable.');
+      }
+    });
+
     Object.assign(btn.style, getButtonStyles(BUTTON_COLORS.schema, isActive, false));
     btn.onclick = () => this.handlePageSchema();
 

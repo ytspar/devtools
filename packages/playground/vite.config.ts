@@ -1,7 +1,10 @@
 import { resolve } from 'path';
 import { defineConfig } from 'vite';
+import { sweetlink } from '../sweetlink/src/vite.js';
 
 export default defineConfig({
+  plugins: [sweetlink()],
+
   // Use workspace packages directly via node_modules (symlinked by pnpm)
   resolve: {
     alias: {
