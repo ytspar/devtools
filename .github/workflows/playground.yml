@@ -52,9 +52,10 @@ jobs:
         run: pnpm build
 
       - name: Build playground for GitHub Pages
-        run: pnpm --filter playground build -- --base=/devtools/
+        run: pnpm --filter playground build
         env:
           NODE_ENV: production
+          VITE_BASE_URL: /devtools/
 
       - name: Setup Pages
         uses: actions/configure-pages@v5
