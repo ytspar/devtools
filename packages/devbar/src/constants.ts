@@ -57,11 +57,11 @@ export const SCREENSHOT_SCALE = 0.75;
 
 /** Tailwind CSS breakpoint definitions */
 export const TAILWIND_BREAKPOINTS = {
-  'base': { min: 0, label: 'Tailwind base: <640px' },
-  'sm': { min: 640, label: 'Tailwind sm: >=640px' },
-  'md': { min: 768, label: 'Tailwind md: >=768px' },
-  'lg': { min: 1024, label: 'Tailwind lg: >=1024px' },
-  'xl': { min: 1280, label: 'Tailwind xl: >=1280px' },
+  base: { min: 0, label: 'Tailwind base: <640px' },
+  sm: { min: 640, label: 'Tailwind sm: >=640px' },
+  md: { min: 768, label: 'Tailwind md: >=768px' },
+  lg: { min: 1024, label: 'Tailwind lg: >=1024px' },
+  xl: { min: 1280, label: 'Tailwind xl: >=1280px' },
   '2xl': { min: 1536, label: 'Tailwind 2xl: >=1536px' },
 } as const;
 
@@ -160,13 +160,13 @@ export const DEVBAR_THEME = {
   // Typography scale (matches DevBar UI)
   typography: {
     // Font sizes
-    sizeXs: '0.625rem',    // 10px - badges, tiny labels
-    sizeSm: '0.6875rem',   // 11px - main devbar text
-    sizeBase: '0.75rem',   // 12px - buttons, tooltips
-    sizeMd: '0.8125rem',   // 13px - section headers
-    sizeLg: '0.875rem',    // 14px - descriptions
-    sizeXl: '1rem',        // 16px - modal titles
-    size2xl: '1.5rem',     // 24px - page titles
+    sizeXs: '0.625rem', // 10px - badges, tiny labels
+    sizeSm: '0.6875rem', // 11px - main devbar text
+    sizeBase: '0.75rem', // 12px - buttons, tooltips
+    sizeMd: '0.8125rem', // 13px - section headers
+    sizeLg: '0.875rem', // 14px - descriptions
+    sizeXl: '1rem', // 16px - modal titles
+    size2xl: '1.5rem', // 24px - page titles
 
     // Line heights
     leadingTight: '1rem',
@@ -345,7 +345,10 @@ export function generateBreakpointCSS(
   property: string,
   values: Record<TailwindBreakpoint, string>
 ): string {
-  const breakpoints = Object.entries(TAILWIND_BREAKPOINTS) as [TailwindBreakpoint, { min: number }][];
+  const breakpoints = Object.entries(TAILWIND_BREAKPOINTS) as [
+    TailwindBreakpoint,
+    { min: number },
+  ][];
 
   return breakpoints
     .map(([bp, { min }]) => {
@@ -568,13 +571,7 @@ export const TOOLTIP_STYLES = `
     right: auto !important;
     transform: translateX(-50%) !important;
   }
-  /* Collapsed state: preserve circle shape, center horizontally */
-  [data-devbar].devbar-collapse {
-    left: 50% !important;
-    right: auto !important;
-    transform: translateX(-50%) !important;
-    bottom: 20px !important;
-  }
+  /* Collapsed state: JS handles positioning based on captured dot location */
   .devbar-main {
     flex-wrap: wrap;
     justify-content: center;

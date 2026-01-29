@@ -9,73 +9,79 @@
  */
 
 import * as html2canvasModule from 'html2canvas-pro';
-
+import {
+  BASE_RECONNECT_DELAY_MS,
+  BUTTON_COLORS,
+  CATEGORY_COLORS,
+  CLIPBOARD_NOTIFICATION_MS,
+  COLORS,
+  DESIGN_REVIEW_NOTIFICATION_MS,
+  DEVBAR_SCREENSHOT_QUALITY,
+  FONT_MONO,
+  MAX_CONSOLE_LOGS,
+  MAX_RECONNECT_ATTEMPTS,
+  MAX_RECONNECT_DELAY_MS,
+  SCREENSHOT_BLUR_DELAY_MS,
+  SCREENSHOT_NOTIFICATION_MS,
+  SCREENSHOT_SCALE,
+  TAILWIND_BREAKPOINTS,
+  TOOLTIP_STYLES,
+  WS_PORT,
+} from './constants.js';
+import { extractDocumentOutline, outlineToMarkdown } from './outline.js';
+import { extractPageSchema, schemaToMarkdown } from './schema.js';
 // Import from split modules
 import type {
+  ConsoleLog,
+  DevBarControl,
+  GlobalDevBarOptions,
+  OutlineNode,
+  PageSchema,
+  SweetlinkCommand,
+} from './types.js';
+import {
+  createEmptyMessage,
+  createInfoBox,
+  createModalBox,
+  createModalContent,
+  createModalHeader,
+  createModalOverlay,
+  createStyledButton,
+  createSvgIcon,
+  getButtonStyles,
+} from './ui/index.js';
+import {
+  canvasToDataUrl,
+  copyCanvasToClipboard,
+  delay,
+  formatArgs,
+  prepareForCapture,
+} from './utils.js';
+
+// Re-export types for backwards compatibility
+export type {
   ConsoleLog,
   SweetlinkCommand,
   OutlineNode,
   PageSchema,
   GlobalDevBarOptions,
-  DevBarControl
-} from './types.js';
-
-import {
-  MAX_CONSOLE_LOGS,
-  DEVBAR_SCREENSHOT_QUALITY,
-  MAX_RECONNECT_ATTEMPTS,
-  BASE_RECONNECT_DELAY_MS,
-  MAX_RECONNECT_DELAY_MS,
-  WS_PORT,
-  SCREENSHOT_NOTIFICATION_MS,
-  CLIPBOARD_NOTIFICATION_MS,
-  DESIGN_REVIEW_NOTIFICATION_MS,
-  SCREENSHOT_BLUR_DELAY_MS,
-  SCREENSHOT_SCALE,
-  TAILWIND_BREAKPOINTS,
-  BUTTON_COLORS,
-  CATEGORY_COLORS,
-  TOOLTIP_STYLES,
-  COLORS,
-  FONT_MONO,
-} from './constants.js';
-
-import {
-  formatArgs,
-  canvasToDataUrl,
-  prepareForCapture,
-  delay,
-  copyCanvasToClipboard,
-} from './utils.js';
-
-import { extractDocumentOutline, outlineToMarkdown } from './outline.js';
-import { extractPageSchema, schemaToMarkdown } from './schema.js';
-
-import {
-  createSvgIcon,
-  getButtonStyles,
-  createStyledButton,
-  createModalOverlay,
-  createModalBox,
-  createModalHeader,
-  createModalContent,
-  createEmptyMessage,
-  createInfoBox,
-} from './ui/index.js';
-
-// Re-export types for backwards compatibility
-export type { ConsoleLog, SweetlinkCommand, OutlineNode, PageSchema, GlobalDevBarOptions, DevBarControl };
+  DevBarControl,
+};
 
 // Handle ESM/CJS interop for html2canvas-pro
-type Html2CanvasFunc = (element: HTMLElement, options?: {
-  logging?: boolean;
-  useCORS?: boolean;
-  allowTaint?: boolean;
-  scale?: number;
-  width?: number;
-  windowWidth?: number
-}) => Promise<HTMLCanvasElement>;
-const html2canvas = ((html2canvasModule as unknown as { default: Html2CanvasFunc }).default ?? html2canvasModule) as Html2CanvasFunc;
+type Html2CanvasFunc = (
+  element: HTMLElement,
+  options?: {
+    logging?: boolean;
+    useCORS?: boolean;
+    allowTaint?: boolean;
+    scale?: number;
+    width?: number;
+    windowWidth?: number;
+  }
+) => Promise<HTMLCanvasElement>;
+const html2canvas = ((html2canvasModule as unknown as { default: Html2CanvasFunc }).default ??
+  html2canvasModule) as Html2CanvasFunc;
 
 // ============================================================================
 // Early Console Capture (runs immediately on module load)
@@ -100,7 +106,7 @@ const earlyConsoleCapture: EarlyConsoleCapture = (() => {
     warningCount: 0,
     logs: [],
     originalConsole: null,
-    isPatched: false
+    isPatched: false,
   };
 
   // Skip on server-side rendering
@@ -114,22 +120,37 @@ const earlyConsoleCapture: EarlyConsoleCapture = (() => {
       log: console.log,
       error: console.error,
       warn: console.warn,
-      info: console.info
+      info: console.info,
     },
-    isPatched: false
+    isPatched: false,
   };
 
   const captureLog = (level: string, args: unknown[]) => {
     capture.logs.push({ level, message: formatArgs(args), timestamp: Date.now() });
-    if (capture.logs.length > MAX_CONSOLE_LOGS) capture.logs = capture.logs.slice(-MAX_CONSOLE_LOGS);
+    if (capture.logs.length > MAX_CONSOLE_LOGS)
+      capture.logs = capture.logs.slice(-MAX_CONSOLE_LOGS);
   };
 
   // Patch console immediately
   if (!capture.isPatched && capture.originalConsole) {
-    console.log = (...args) => { captureLog('log', args); capture.originalConsole!.log(...args); };
-    console.error = (...args) => { captureLog('error', args); capture.errorCount++; capture.originalConsole!.error(...args); };
-    console.warn = (...args) => { captureLog('warn', args); capture.warningCount++; capture.originalConsole!.warn(...args); };
-    console.info = (...args) => { captureLog('info', args); capture.originalConsole!.info(...args); };
+    console.log = (...args) => {
+      captureLog('log', args);
+      capture.originalConsole!.log(...args);
+    };
+    console.error = (...args) => {
+      captureLog('error', args);
+      capture.errorCount++;
+      capture.originalConsole!.error(...args);
+    };
+    console.warn = (...args) => {
+      captureLog('warn', args);
+      capture.warningCount++;
+      capture.originalConsole!.warn(...args);
+    };
+    console.info = (...args) => {
+      captureLog('info', args);
+      capture.originalConsole!.info(...args);
+    };
     capture.isPatched = true;
   }
 
@@ -144,7 +165,8 @@ export class GlobalDevBar {
   // Static storage for custom controls
   private static customControls: DevBarControl[] = [];
 
-  private options: Required<Omit<GlobalDevBarOptions, 'sizeOverrides'>> & Pick<GlobalDevBarOptions, 'sizeOverrides'>;
+  private options: Required<Omit<GlobalDevBarOptions, 'sizeOverrides'>> &
+    Pick<GlobalDevBarOptions, 'sizeOverrides'>;
   private container: HTMLDivElement | null = null;
   private ws: WebSocket | null = null;
   private consoleLogs: ConsoleLog[] = [];
@@ -177,6 +199,9 @@ export class GlobalDevBar {
   private lcpValue: number | null = null;
 
   private reconnectAttempts = 0;
+
+  // Track the position of the connection indicator dot for smooth collapse
+  private lastDotPosition: { left: number; top: number; bottom: number } | null = null;
 
   private reconnectTimeout: ReturnType<typeof setTimeout> | null = null;
   private screenshotTimeout: ReturnType<typeof setTimeout> | null = null;
@@ -215,7 +240,10 @@ export class GlobalDevBar {
   /**
    * Get tooltip class name(s) if tooltips are enabled, otherwise empty string
    */
-  private tooltipClass(direction: 'left' | 'right' = 'left', ...additionalClasses: string[]): string {
+  private tooltipClass(
+    direction: 'left' | 'right' = 'left',
+    ...additionalClasses: string[]
+  ): string {
     if (!this.options.showTooltips) {
       return additionalClasses.join(' ');
     }
@@ -255,7 +283,7 @@ export class GlobalDevBar {
       fontWeight: '600',
       display: 'flex',
       alignItems: 'center',
-      justifyContent: 'center'
+      justifyContent: 'center',
     });
     badge.textContent = count > 99 ? '!' : String(count);
     return badge;
@@ -270,7 +298,7 @@ export class GlobalDevBar {
    */
   static registerControl(control: DevBarControl): void {
     // Remove existing control with same ID
-    GlobalDevBar.customControls = GlobalDevBar.customControls.filter(c => c.id !== control.id);
+    GlobalDevBar.customControls = GlobalDevBar.customControls.filter((c) => c.id !== control.id);
     GlobalDevBar.customControls.push(control);
     // Trigger re-render of all instances
     const instance = getGlobalInstance();
@@ -283,7 +311,7 @@ export class GlobalDevBar {
    * Unregister a custom control by ID
    */
   static unregisterControl(id: string): void {
-    GlobalDevBar.customControls = GlobalDevBar.customControls.filter(c => c.id !== id);
+    GlobalDevBar.customControls = GlobalDevBar.customControls.filter((c) => c.id !== id);
     // Trigger re-render of all instances
     const instance = getGlobalInstance();
     if (instance) {
@@ -336,6 +364,13 @@ export class GlobalDevBar {
 
     // Initial render
     this.render();
+  }
+
+  /**
+   * Get the current position
+   */
+  getPosition(): string {
+    return this.options.position;
   }
 
   /**
@@ -421,9 +456,12 @@ export class GlobalDevBar {
 
       // Auto-reconnect with exponential backoff
       if (!this.destroyed && this.reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
-        const delayMs = BASE_RECONNECT_DELAY_MS * Math.pow(2, this.reconnectAttempts);
+        const delayMs = BASE_RECONNECT_DELAY_MS * 2 ** this.reconnectAttempts;
         this.reconnectAttempts++;
-        this.reconnectTimeout = setTimeout(() => this.connectWebSocket(), Math.min(delayMs, MAX_RECONNECT_DELAY_MS));
+        this.reconnectTimeout = setTimeout(
+          () => this.connectWebSocket(),
+          Math.min(delayMs, MAX_RECONNECT_DELAY_MS)
+        );
       }
     };
 
@@ -439,21 +477,34 @@ export class GlobalDevBar {
     switch (command.type) {
       case 'screenshot': {
         const targetElement = command.selector
-          ? document.querySelector(command.selector) as HTMLElement || document.body
+          ? (document.querySelector(command.selector) as HTMLElement) || document.body
           : document.body;
-        const canvas = await html2canvas(targetElement, { logging: false, useCORS: true, allowTaint: true });
-        ws.send(JSON.stringify({
-          success: true,
-          data: { screenshot: canvas.toDataURL('image/png'), width: canvas.width, height: canvas.height, selector: command.selector || 'body' },
-          timestamp: Date.now()
-        }));
+        const canvas = await html2canvas(targetElement, {
+          logging: false,
+          useCORS: true,
+          allowTaint: true,
+        });
+        ws.send(
+          JSON.stringify({
+            success: true,
+            data: {
+              screenshot: canvas.toDataURL('image/png'),
+              width: canvas.width,
+              height: canvas.height,
+              selector: command.selector || 'body',
+            },
+            timestamp: Date.now(),
+          })
+        );
         break;
       }
       case 'get-logs': {
         let logs = this.consoleLogs;
         if (command.filter) {
           const filter = command.filter.toLowerCase();
-          logs = logs.filter(log => log.level.includes(filter) || log.message.toLowerCase().includes(filter));
+          logs = logs.filter(
+            (log) => log.level.includes(filter) || log.message.toLowerCase().includes(filter)
+          );
         }
         ws.send(JSON.stringify({ success: true, data: logs, timestamp: Date.now() }));
         break;
@@ -462,10 +513,22 @@ export class GlobalDevBar {
         if (command.selector) {
           const elements = Array.from(document.querySelectorAll(command.selector));
           const results = elements.map((el: Element) => {
-            if (command.property) return (el as unknown as Record<string, unknown>)[command.property] ?? null;
-            return { tagName: el.tagName, className: el.className, id: el.id, textContent: el.textContent?.trim().slice(0, 100) };
+            if (command.property)
+              return (el as unknown as Record<string, unknown>)[command.property] ?? null;
+            return {
+              tagName: el.tagName,
+              className: el.className,
+              id: el.id,
+              textContent: el.textContent?.trim().slice(0, 100),
+            };
           });
-          ws.send(JSON.stringify({ success: true, data: { count: results.length, results }, timestamp: Date.now() }));
+          ws.send(
+            JSON.stringify({
+              success: true,
+              data: { count: results.length, results },
+              timestamp: Date.now(),
+            })
+          );
         }
         break;
       }
@@ -477,7 +540,13 @@ export class GlobalDevBar {
             const result = indirectEval(command.code);
             ws.send(JSON.stringify({ success: true, data: result, timestamp: Date.now() }));
           } catch (e) {
-            ws.send(JSON.stringify({ success: false, error: e instanceof Error ? e.message : 'Execution failed', timestamp: Date.now() }));
+            ws.send(
+              JSON.stringify({
+                success: false,
+                error: e instanceof Error ? e.message : 'Execution failed',
+                timestamp: Date.now(),
+              })
+            );
           }
         }
         break;
@@ -549,22 +618,34 @@ export class GlobalDevBar {
       case 'screenshot':
         this.lastScreenshot = path;
         if (this.screenshotTimeout) clearTimeout(this.screenshotTimeout);
-        this.screenshotTimeout = setTimeout(() => { this.lastScreenshot = null; this.render(); }, durationMs);
+        this.screenshotTimeout = setTimeout(() => {
+          this.lastScreenshot = null;
+          this.render();
+        }, durationMs);
         break;
       case 'designReview':
         this.lastDesignReview = path;
         if (this.designReviewTimeout) clearTimeout(this.designReviewTimeout);
-        this.designReviewTimeout = setTimeout(() => { this.lastDesignReview = null; this.render(); }, durationMs);
+        this.designReviewTimeout = setTimeout(() => {
+          this.lastDesignReview = null;
+          this.render();
+        }, durationMs);
         break;
       case 'outline':
         this.lastOutline = path;
         if (this.outlineTimeout) clearTimeout(this.outlineTimeout);
-        this.outlineTimeout = setTimeout(() => { this.lastOutline = null; this.render(); }, durationMs);
+        this.outlineTimeout = setTimeout(() => {
+          this.lastOutline = null;
+          this.render();
+        }, durationMs);
         break;
       case 'schema':
         this.lastSchema = path;
         if (this.schemaTimeout) clearTimeout(this.schemaTimeout);
-        this.schemaTimeout = setTimeout(() => { this.lastSchema = null; this.render(); }, durationMs);
+        this.schemaTimeout = setTimeout(() => {
+          this.lastSchema = null;
+          this.render();
+        }, durationMs);
         break;
     }
     this.render();
@@ -576,16 +657,19 @@ export class GlobalDevBar {
       const height = window.innerHeight;
 
       // Determine breakpoint by checking thresholds in descending order
-      let tailwindBreakpoint = 'base';
-      if (width >= TAILWIND_BREAKPOINTS['2xl'].min) tailwindBreakpoint = '2xl';
-      else if (width >= TAILWIND_BREAKPOINTS.xl.min) tailwindBreakpoint = 'xl';
-      else if (width >= TAILWIND_BREAKPOINTS.lg.min) tailwindBreakpoint = 'lg';
-      else if (width >= TAILWIND_BREAKPOINTS.md.min) tailwindBreakpoint = 'md';
-      else if (width >= TAILWIND_BREAKPOINTS.sm.min) tailwindBreakpoint = 'sm';
+      const breakpointOrder: Array<keyof typeof TAILWIND_BREAKPOINTS> = [
+        '2xl',
+        'xl',
+        'lg',
+        'md',
+        'sm',
+      ];
+      const tailwindBreakpoint =
+        breakpointOrder.find((bp) => width >= TAILWIND_BREAKPOINTS[bp].min) ?? 'base';
 
       this.breakpointInfo = {
         tailwindBreakpoint,
-        dimensions: `${width}x${height}`
+        dimensions: `${width}x${height}`,
       };
       this.render();
     };
@@ -599,7 +683,7 @@ export class GlobalDevBar {
     const updatePerfStats = () => {
       // FCP
       const paintEntries = performance.getEntriesByType('paint');
-      const fcpEntry = paintEntries.find(entry => entry.name === 'first-contentful-paint');
+      const fcpEntry = paintEntries.find((entry) => entry.name === 'first-contentful-paint');
       const fcp = fcpEntry ? `${Math.round(fcpEntry.startTime)}ms` : '-';
 
       // LCP (from cached value, updated by observer)
@@ -619,9 +703,10 @@ export class GlobalDevBar {
         totalBytes += resourceEntry.transferSize || 0;
       });
 
-      const totalSize = totalBytes > 1024 * 1024
-        ? `${(totalBytes / (1024 * 1024)).toFixed(1)} MB`
-        : `${Math.round(totalBytes / 1024)} KB`;
+      const totalSize =
+        totalBytes > 1024 * 1024
+          ? `${(totalBytes / (1024 * 1024)).toFixed(1)} MB`
+          : `${Math.round(totalBytes / 1024)} KB`;
 
       this.perfStats = { fcp, lcp, totalSize };
       this.render();
@@ -668,7 +753,12 @@ export class GlobalDevBar {
     this.keydownHandler = (e: KeyboardEvent) => {
       // Close modals on Escape
       if (e.key === 'Escape') {
-        if (this.consoleFilter || this.showOutlineModal || this.showSchemaModal || this.showDesignReviewConfirm) {
+        if (
+          this.consoleFilter ||
+          this.showOutlineModal ||
+          this.showSchemaModal ||
+          this.showDesignReviewConfirm
+        ) {
           this.consoleFilter = null;
           this.showOutlineModal = false;
           this.showSchemaModal = false;
@@ -732,7 +822,7 @@ export class GlobalDevBar {
         allowTaint: true,
         scale: SCREENSHOT_SCALE,
         width: window.innerWidth,
-        windowWidth: window.innerWidth
+        windowWidth: window.innerWidth,
       });
 
       // Restore page state
@@ -753,19 +843,24 @@ export class GlobalDevBar {
           console.error('[GlobalDevBar] Failed to copy to clipboard:', e);
         }
       } else {
-        const dataUrl = canvasToDataUrl(canvas, { format: 'jpeg', quality: DEVBAR_SCREENSHOT_QUALITY });
+        const dataUrl = canvasToDataUrl(canvas, {
+          format: 'jpeg',
+          quality: DEVBAR_SCREENSHOT_QUALITY,
+        });
         if (this.ws?.readyState === WebSocket.OPEN) {
-          this.ws.send(JSON.stringify({
-            type: 'save-screenshot',
-            data: {
-              screenshot: dataUrl,
-              width: canvas.width,
-              height: canvas.height,
-              logs: this.consoleLogs,
-              url: window.location.href,
-              timestamp: Date.now()
-            }
-          }));
+          this.ws.send(
+            JSON.stringify({
+              type: 'save-screenshot',
+              data: {
+                screenshot: dataUrl,
+                width: canvas.width,
+                height: canvas.height,
+                logs: this.consoleLogs,
+                url: window.location.href,
+                timestamp: Date.now(),
+              },
+            })
+          );
         }
       }
     } catch (e) {
@@ -800,7 +895,7 @@ export class GlobalDevBar {
         allowTaint: true,
         scale: 1, // Full quality for design review
         width: window.innerWidth,
-        windowWidth: window.innerWidth
+        windowWidth: window.innerWidth,
       });
 
       // Restore page state
@@ -809,17 +904,19 @@ export class GlobalDevBar {
 
       const dataUrl = canvasToDataUrl(canvas, { format: 'png' });
       if (this.ws?.readyState === WebSocket.OPEN) {
-        this.ws.send(JSON.stringify({
-          type: 'design-review-screenshot',
-          data: {
-            screenshot: dataUrl,
-            width: canvas.width,
-            height: canvas.height,
-            logs: this.consoleLogs,
-            url: window.location.href,
-            timestamp: Date.now()
-          }
-        }));
+        this.ws.send(
+          JSON.stringify({
+            type: 'design-review-screenshot',
+            data: {
+              screenshot: dataUrl,
+              width: canvas.width,
+              height: canvas.height,
+              logs: this.consoleLogs,
+              url: window.location.href,
+              timestamp: Date.now(),
+            },
+          })
+        );
       }
     } catch (e) {
       console.error('[GlobalDevBar] Design review failed:', e);
@@ -917,16 +1014,18 @@ export class GlobalDevBar {
     const markdown = outlineToMarkdown(outline);
 
     if (this.ws?.readyState === WebSocket.OPEN) {
-      this.ws.send(JSON.stringify({
-        type: 'save-outline',
-        data: {
-          outline,
-          markdown,
-          url: window.location.href,
-          title: document.title,
-          timestamp: Date.now()
-        }
-      }));
+      this.ws.send(
+        JSON.stringify({
+          type: 'save-outline',
+          data: {
+            outline,
+            markdown,
+            url: window.location.href,
+            title: document.title,
+            timestamp: Date.now(),
+          },
+        })
+      );
     }
   }
 
@@ -935,16 +1034,18 @@ export class GlobalDevBar {
     const markdown = schemaToMarkdown(schema);
 
     if (this.ws?.readyState === WebSocket.OPEN) {
-      this.ws.send(JSON.stringify({
-        type: 'save-schema',
-        data: {
-          schema,
-          markdown,
-          url: window.location.href,
-          title: document.title,
-          timestamp: Date.now()
-        }
-      }));
+      this.ws.send(
+        JSON.stringify({
+          type: 'save-schema',
+          data: {
+            schema,
+            markdown,
+            url: window.location.href,
+            title: document.title,
+            timestamp: Date.now(),
+          },
+        })
+      );
     }
   }
 
@@ -1042,7 +1143,12 @@ export class GlobalDevBar {
     title.textContent = 'AI Design Review';
     header.appendChild(title);
 
-    const closeBtn = createStyledButton({ color: COLORS.textMuted, text: '×', padding: '0', fontSize: '1.25rem' });
+    const closeBtn = createStyledButton({
+      color: COLORS.textMuted,
+      text: '×',
+      padding: '0',
+      fontSize: '1.25rem',
+    });
     closeBtn.style.border = 'none';
     closeBtn.onclick = closeModal;
     header.appendChild(closeBtn);
@@ -1077,7 +1183,11 @@ export class GlobalDevBar {
       borderTop: `1px solid ${COLORS.border}`,
     });
 
-    const cancelBtn = createStyledButton({ color: COLORS.textMuted, text: 'Cancel', padding: '8px 16px' });
+    const cancelBtn = createStyledButton({
+      color: COLORS.textMuted,
+      text: 'Cancel',
+      padding: '8px 16px',
+    });
     cancelBtn.onclick = closeModal;
     footer.appendChild(cancelBtn);
 
@@ -1099,18 +1209,24 @@ export class GlobalDevBar {
   private renderApiKeyNotConfiguredContent(): HTMLElement {
     const wrapper = document.createElement('div');
 
-    wrapper.appendChild(createInfoBox(
-      COLORS.error,
-      'API Key Not Configured',
-      'The ANTHROPIC_API_KEY environment variable is not set.'
-    ));
+    wrapper.appendChild(
+      createInfoBox(
+        COLORS.error,
+        'API Key Not Configured',
+        'The ANTHROPIC_API_KEY environment variable is not set.'
+      )
+    );
 
     // Instructions
     const instructions = document.createElement('div');
     Object.assign(instructions.style, { marginBottom: '12px' });
 
     const instructTitle = document.createElement('div');
-    Object.assign(instructTitle.style, { color: COLORS.textSecondary, fontWeight: '600', marginBottom: '8px' });
+    Object.assign(instructTitle.style, {
+      color: COLORS.textSecondary,
+      fontWeight: '600',
+      marginBottom: '8px',
+    });
     instructTitle.textContent = 'To configure:';
     instructions.appendChild(instructTitle);
 
@@ -1181,7 +1297,11 @@ export class GlobalDevBar {
     // Model info
     if (this.apiKeyStatus?.model) {
       const modelDiv = document.createElement('div');
-      Object.assign(modelDiv.style, { color: COLORS.textMuted, fontSize: '0.6875rem', marginTop: '12px' });
+      Object.assign(modelDiv.style, {
+        color: COLORS.textMuted,
+        fontSize: '0.6875rem',
+        marginTop: '12px',
+      });
       modelDiv.textContent = `Model: ${this.apiKeyStatus.model}`;
       if (this.apiKeyStatus.maskedKey) {
         modelDiv.textContent += ` | Key: ${this.apiKeyStatus.maskedKey}`;
@@ -1196,7 +1316,7 @@ export class GlobalDevBar {
     const filterType = this.consoleFilter;
     if (!filterType) return;
 
-    const logs = earlyConsoleCapture.logs.filter(log => log.level === filterType);
+    const logs = earlyConsoleCapture.logs.filter((log) => log.level === filterType);
     const color = filterType === 'error' ? BUTTON_COLORS.error : BUTTON_COLORS.warning;
     const label = filterType === 'error' ? 'Errors' : 'Warnings';
 
@@ -1317,7 +1437,8 @@ export class GlobalDevBar {
         wordBreak: 'break-word',
         whiteSpace: 'pre-wrap',
       });
-      message.textContent = log.message.length > 500 ? log.message.slice(0, 500) + '...' : log.message;
+      message.textContent =
+        log.message.length > 500 ? `${log.message.slice(0, 500)}...` : log.message;
       logItem.appendChild(message);
 
       container.appendChild(logItem);
@@ -1401,7 +1522,7 @@ export class GlobalDevBar {
         fontSize: '0.6875rem',
         marginLeft: '8px',
       });
-      const truncatedText = node.text.length > 60 ? node.text.slice(0, 60) + '...' : node.text;
+      const truncatedText = node.text.length > 60 ? `${node.text.slice(0, 60)}...` : node.text;
       textSpan.textContent = truncatedText;
       nodeEl.appendChild(textSpan);
 
@@ -1551,16 +1672,17 @@ export class GlobalDevBar {
   private appendHighlightedJson(container: HTMLElement, json: string): void {
     // Color map for different token types
     const colors: Record<string, string> = {
-      key: COLORS.primary,     // green
-      string: COLORS.warning,  // amber/yellow
-      number: COLORS.purple,   // purple
-      boolean: COLORS.info,    // blue
-      nullVal: COLORS.error,   // red
+      key: COLORS.primary, // green
+      string: COLORS.warning, // amber/yellow
+      number: COLORS.purple, // purple
+      boolean: COLORS.info, // blue
+      nullVal: COLORS.error, // red
       punct: COLORS.textMuted, // gray
     };
 
     // Simple tokenizer for JSON using matchAll for safety
-    const tokenPattern = /("(?:\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*")(\s*:)?|(\btrue\b|\bfalse\b)|(\bnull\b)|(-?\d+(?:\.\d*)?(?:[eE][+-]?\d+)?)|([{}\[\],])|(\s+)/g;
+    const tokenPattern =
+      /("(?:\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*")(\s*:)?|(\btrue\b|\bfalse\b)|(\bnull\b)|(-?\d+(?:\.\d*)?(?:[eE][+-]?\d+)?)|([{}[\],])|(\s+)/g;
 
     for (const match of json.matchAll(tokenPattern)) {
       const [, str, colon, bool, nullToken, num, punct, whitespace] = match;
@@ -1655,22 +1777,35 @@ export class GlobalDevBar {
     const { position, accentColor } = this.options;
     const { errorCount, warningCount } = this.getLogCounts();
 
-    // Calculate position so the collapsed dot aligns with where it appears in expanded state
-    // Expanded: left:80 + border:1 + padding:12 + half-indicator:6 = 99px horizontal center
-    // Expanded: bottom:20 + border:1 + padding:8 + half-row-height:11 = 40px vertical center (approx)
-    // Collapsed circle diameter: 26px, so offset by 13px from center
-    const collapsedPositions: Record<string, { bottom?: string; left?: string; top?: string; right?: string; transform?: string }> = {
-      'bottom-left': { bottom: '27px', left: '86px' },
-      'bottom-right': { bottom: '27px', right: '29px' },
-      'top-left': { top: '27px', left: '86px' },
-      'top-right': { top: '27px', right: '29px' },
-      'bottom-center': { bottom: '19px', left: '50%', transform: 'translateX(-50%)' },
-    };
-    const posStyle = collapsedPositions[position] ?? collapsedPositions['bottom-left'];
+    // Use captured dot position if available, otherwise fall back to preset positions
+    // The 13px offset accounts for half the collapsed circle diameter (26px / 2)
+    let posStyle: { bottom?: string; left?: string; top?: string; right?: string; transform?: string };
+
+    if (this.lastDotPosition) {
+      // Position based on where the dot actually was
+      const isTop = position.startsWith('top');
+      posStyle = isTop
+        ? { top: `${this.lastDotPosition.top - 13}px`, left: `${this.lastDotPosition.left - 13}px` }
+        : { bottom: `${this.lastDotPosition.bottom - 13}px`, left: `${this.lastDotPosition.left - 13}px` };
+    } else {
+      // Fallback preset positions for when no dot position was captured
+      const collapsedPositions: Record<
+        string,
+        { bottom?: string; left?: string; top?: string; right?: string; transform?: string }
+      > = {
+        'bottom-left': { bottom: '27px', left: '86px' },
+        'bottom-right': { bottom: '27px', right: '29px' },
+        'top-left': { top: '27px', left: '86px' },
+        'top-right': { top: '27px', right: '29px' },
+        'bottom-center': { bottom: '19px', left: '50%', transform: 'translateX(-50%)' },
+      };
+      posStyle = collapsedPositions[position] ?? collapsedPositions['bottom-left'];
+    }
 
     const wrapper = this.container;
     wrapper.className = this.tooltipClass('left', 'devbar-collapse');
-    wrapper.setAttribute('data-tooltip',
+    wrapper.setAttribute(
+      'data-tooltip',
       `Click to expand DevBar${this.sweetlinkConnected ? ' (Sweetlink connected)' : ' (Sweetlink not connected)'}${errorCount > 0 ? `\n${errorCount} console error${errorCount === 1 ? '' : 's'}` : ''}`
     );
 
@@ -1699,7 +1834,7 @@ export class GlobalDevBar {
       width: '26px',
       height: '26px',
       boxSizing: 'border-box',
-      animation: 'devbar-collapse 150ms ease-out'
+      animation: 'devbar-collapse 150ms ease-out',
     });
 
     wrapper.onclick = () => {
@@ -1714,22 +1849,26 @@ export class GlobalDevBar {
       height: '6px',
       borderRadius: '50%',
       backgroundColor: this.sweetlinkConnected ? COLORS.primary : COLORS.textMuted,
-      boxShadow: this.sweetlinkConnected ? `0 0 6px ${COLORS.primary}` : 'none'
+      boxShadow: this.sweetlinkConnected ? `0 0 6px ${COLORS.primary}` : 'none',
     });
     wrapper.appendChild(dot);
 
     // Error badge (absolute, top-right of circle, shifted left if warning badge exists)
     if (errorCount > 0) {
-      wrapper.appendChild(this.createCollapsedBadge(
-        errorCount,
-        'rgba(239, 68, 68, 0.95)',
-        warningCount > 0 ? '12px' : '-6px'
-      ));
+      wrapper.appendChild(
+        this.createCollapsedBadge(
+          errorCount,
+          'rgba(239, 68, 68, 0.95)',
+          warningCount > 0 ? '12px' : '-6px'
+        )
+      );
     }
 
     // Warning badge (absolute, top-right)
     if (warningCount > 0) {
-      wrapper.appendChild(this.createCollapsedBadge(warningCount, 'rgba(245, 158, 11, 0.95)', '-6px'));
+      wrapper.appendChild(
+        this.createCollapsedBadge(warningCount, 'rgba(245, 158, 11, 0.95)', '-6px')
+      );
     }
   }
 
@@ -1739,7 +1878,10 @@ export class GlobalDevBar {
     const { position, accentColor, showMetrics, showScreenshot, showConsoleBadges } = this.options;
     const { errorCount, warningCount } = this.getLogCounts();
 
-    const positionStyles: Record<string, { bottom?: string; left?: string; top?: string; right?: string; transform?: string }> = {
+    const positionStyles: Record<
+      string,
+      { bottom?: string; left?: string; top?: string; right?: string; transform?: string }
+    > = {
       'bottom-left': { bottom: '20px', left: '80px' },
       'bottom-right': { bottom: '20px', right: '16px' },
       'top-left': { top: '20px', left: '80px' },
@@ -1782,10 +1924,20 @@ export class GlobalDevBar {
       width: sizeOverrides?.width ?? defaultWidth,
       maxWidth: sizeOverrides?.maxWidth ?? defaultMaxWidth,
       minWidth: sizeOverrides?.minWidth ?? defaultMinWidth,
-      cursor: 'default'
+      cursor: 'default',
     });
 
     wrapper.ondblclick = () => {
+      // Capture dot position before collapsing
+      const dotEl = wrapper.querySelector('.devbar-status span span') as HTMLElement;
+      if (dotEl) {
+        const rect = dotEl.getBoundingClientRect();
+        this.lastDotPosition = {
+          left: rect.left + rect.width / 2,
+          top: rect.top + rect.height / 2,
+          bottom: window.innerHeight - (rect.top + rect.height / 2),
+        };
+      }
       this.collapsed = true;
       this.render();
     };
@@ -1804,13 +1956,18 @@ export class GlobalDevBar {
       boxSizing: 'border-box',
       fontFamily: FONT_MONO,
       fontSize: '0.6875rem',
-      lineHeight: '1rem'
+      lineHeight: '1rem',
     });
 
     // Connection indicator (click to collapse)
     const connIndicator = document.createElement('span');
     connIndicator.className = this.tooltipClass('left', 'devbar-clickable');
-    connIndicator.setAttribute('data-tooltip', this.sweetlinkConnected ? 'Sweetlink connected (click to minimize)' : 'Sweetlink disconnected (click to minimize)');
+    connIndicator.setAttribute(
+      'data-tooltip',
+      this.sweetlinkConnected
+        ? 'Sweetlink connected (click to minimize)'
+        : 'Sweetlink disconnected (click to minimize)'
+    );
     Object.assign(connIndicator.style, {
       width: '12px',
       height: '12px',
@@ -1820,10 +1977,17 @@ export class GlobalDevBar {
       alignItems: 'center',
       justifyContent: 'center',
       cursor: 'pointer',
-      flexShrink: '0'
+      flexShrink: '0',
     });
     connIndicator.onclick = (e) => {
       e.stopPropagation();
+      // Capture dot position before collapsing (connDot is the inner 6px dot)
+      const rect = connIndicator.getBoundingClientRect();
+      this.lastDotPosition = {
+        left: rect.left + rect.width / 2,
+        top: rect.top + rect.height / 2,
+        bottom: window.innerHeight - (rect.top + rect.height / 2),
+      };
       this.collapsed = true;
       this.render();
     };
@@ -1835,7 +1999,7 @@ export class GlobalDevBar {
       borderRadius: '50%',
       backgroundColor: this.sweetlinkConnected ? COLORS.primary : COLORS.textMuted,
       boxShadow: this.sweetlinkConnected ? `0 0 6px ${COLORS.primary}` : 'none',
-      transition: 'all 300ms'
+      transition: 'all 300ms',
     });
     connIndicator.appendChild(connDot);
 
@@ -1847,7 +2011,7 @@ export class GlobalDevBar {
       alignItems: 'center',
       gap: '0.5rem',
       flexWrap: 'nowrap',
-      flexShrink: '0'
+      flexShrink: '0',
     });
     statusRow.appendChild(connIndicator);
 
@@ -1862,7 +2026,7 @@ export class GlobalDevBar {
       letterSpacing: '0.05em',
       flexShrink: '1',
       minWidth: '0',
-      overflow: 'visible'
+      overflow: 'visible',
     });
 
     // Breakpoint info
@@ -1873,13 +2037,17 @@ export class GlobalDevBar {
       const bpSpan = document.createElement('span');
       bpSpan.className = this.tooltipClass('left', 'devbar-item');
       Object.assign(bpSpan.style, { opacity: '0.9', cursor: 'default' });
-      bpSpan.setAttribute('data-tooltip', `Tailwind Breakpoint: ${bp}\n${breakpointData?.label || ''}\n\nViewport: ${this.breakpointInfo.dimensions}\n\nBreakpoints:\nbase: <640px | sm: >=640px\nmd: >=768px | lg: >=1024px\nxl: >=1280px | 2xl: >=1536px`);
+      bpSpan.setAttribute(
+        'data-tooltip',
+        `Tailwind Breakpoint: ${bp}\n${breakpointData?.label || ''}\n\nViewport: ${this.breakpointInfo.dimensions}\n\nBreakpoints:\nbase: <640px | sm: >=640px\nmd: >=768px | lg: >=1024px\nxl: >=1280px | 2xl: >=1536px`
+      );
 
       let bpText: string = bp;
       if (bp !== 'base') {
-        bpText = bp === 'sm'
-          ? `${bp} - ${this.breakpointInfo.dimensions.split('x')[0]}`
-          : `${bp} - ${this.breakpointInfo.dimensions}`;
+        bpText =
+          bp === 'sm'
+            ? `${bp} - ${this.breakpointInfo.dimensions.split('x')[0]}`
+            : `${bp} - ${this.breakpointInfo.dimensions}`;
       }
       bpSpan.textContent = bpText;
       infoSection.appendChild(bpSpan);
@@ -1899,7 +2067,10 @@ export class GlobalDevBar {
         const fcpSpan = document.createElement('span');
         fcpSpan.className = this.tooltipClass('left', 'devbar-item');
         Object.assign(fcpSpan.style, { opacity: '0.85', cursor: 'default' });
-        fcpSpan.setAttribute('data-tooltip', 'First Contentful Paint (FCP): Time until first text/image renders.\n\nGood: <1.8s\nNeeds work: 1.8-3s\nPoor: >3s');
+        fcpSpan.setAttribute(
+          'data-tooltip',
+          'First Contentful Paint (FCP): Time until first text/image renders.\n\nGood: <1.8s\nNeeds work: 1.8-3s\nPoor: >3s'
+        );
         fcpSpan.textContent = `FCP ${this.perfStats.fcp}`;
         infoSection.appendChild(fcpSpan);
       }
@@ -1909,7 +2080,10 @@ export class GlobalDevBar {
         const lcpSpan = document.createElement('span');
         lcpSpan.className = this.tooltipClass('left', 'devbar-item');
         Object.assign(lcpSpan.style, { opacity: '0.85', cursor: 'default' });
-        lcpSpan.setAttribute('data-tooltip', 'Largest Contentful Paint (LCP): Time until largest visible element renders.\n\nGood: <2.5s\nNeeds work: 2.5-4s\nPoor: >4s');
+        lcpSpan.setAttribute(
+          'data-tooltip',
+          'Largest Contentful Paint (LCP): Time until largest visible element renders.\n\nGood: <2.5s\nNeeds work: 2.5-4s\nPoor: >4s'
+        );
         lcpSpan.textContent = `LCP ${this.perfStats.lcp}`;
         infoSection.appendChild(lcpSpan);
       }
@@ -1919,7 +2093,10 @@ export class GlobalDevBar {
         const sizeSpan = document.createElement('span');
         sizeSpan.className = this.tooltipClass('left', 'devbar-item');
         Object.assign(sizeSpan.style, { opacity: '0.7', cursor: 'default' });
-        sizeSpan.setAttribute('data-tooltip', 'Total page size (compressed/transferred).\nIncludes HTML, CSS, JS, images, and other resources.');
+        sizeSpan.setAttribute(
+          'data-tooltip',
+          'Total page size (compressed/transferred).\nIncludes HTML, CSS, JS, images, and other resources.'
+        );
         sizeSpan.textContent = this.perfStats.totalSize;
         infoSection.appendChild(sizeSpan);
       }
@@ -1968,7 +2145,7 @@ export class GlobalDevBar {
         fontSize: '0.6875rem',
       });
 
-      GlobalDevBar.customControls.forEach(control => {
+      GlobalDevBar.customControls.forEach((control) => {
         const btn = document.createElement('button');
         btn.type = 'button';
 
@@ -2025,7 +2202,10 @@ export class GlobalDevBar {
 
     const badge = document.createElement('span');
     badge.className = this.tooltipClass('right', 'devbar-badge');
-    badge.setAttribute('data-tooltip', `${count} console ${label}${count === 1 ? '' : 's'} (click to view)`);
+    badge.setAttribute(
+      'data-tooltip',
+      `${count} console ${label}${count === 1 ? '' : 's'} (click to view)`
+    );
     Object.assign(badge.style, {
       display: 'flex',
       alignItems: 'center',
@@ -2059,13 +2239,7 @@ export class GlobalDevBar {
 
     const hasSuccessState = this.copiedToClipboard || this.copiedPath || this.lastScreenshot;
 
-    const tooltip = this.copiedToClipboard
-      ? 'Copied to clipboard!'
-      : this.copiedPath
-        ? 'Path copied to clipboard!'
-        : this.lastScreenshot
-          ? `Screenshot saved!\n${this.lastScreenshot}\n\nClick to copy path`
-          : `Screenshot\n\nClick: Save to file\nShift+Click: Copy to clipboard\n\nKeyboard:\nCmd/Ctrl+Shift+S: Save\nCmd/Ctrl+Shift+C: Copy${!this.sweetlinkConnected ? '\n\nWarning: Sweetlink not connected' : ''}`;
+    const tooltip = this.getScreenshotTooltip();
     btn.setAttribute('data-tooltip', tooltip);
 
     Object.assign(btn.style, {
@@ -2084,7 +2258,7 @@ export class GlobalDevBar {
       color: hasSuccessState ? accentColor : `${accentColor}99`,
       cursor: !this.capturing ? 'pointer' : 'not-allowed',
       opacity: '1',
-      transition: 'all 150ms'
+      transition: 'all 150ms',
     });
 
     btn.disabled = this.capturing;
@@ -2119,7 +2293,10 @@ export class GlobalDevBar {
       g.setAttribute('stroke-width', '4');
 
       const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-      path.setAttribute('d', 'M19.844 7.938H7.938v11.905m0 11.113v11.906h11.905m23.019-11.906v11.906H30.956m11.906-23.018V7.938H30.956');
+      path.setAttribute(
+        'd',
+        'M19.844 7.938H7.938v11.905m0 11.113v11.906h11.905m23.019-11.906v11.906H30.956m11.906-23.018V7.938H30.956'
+      );
 
       const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
       circle.setAttribute('cx', '25.4');
@@ -2135,18 +2312,52 @@ export class GlobalDevBar {
     return btn;
   }
 
+  /**
+   * Get the tooltip text for the screenshot button based on current state
+   */
+  private getScreenshotTooltip(): string {
+    if (this.copiedToClipboard) {
+      return 'Copied to clipboard!';
+    }
+    if (this.copiedPath) {
+      return 'Path copied to clipboard!';
+    }
+    if (this.lastScreenshot) {
+      return `Screenshot saved!\n${this.lastScreenshot}\n\nClick to copy path`;
+    }
+
+    const baseTooltip = `Screenshot\n\nClick: Save to file\nShift+Click: Copy to clipboard\n\nKeyboard:\nCmd/Ctrl+Shift+S: Save\nCmd/Ctrl+Shift+C: Copy`;
+    return this.sweetlinkConnected
+      ? baseTooltip
+      : `${baseTooltip}\n\nWarning: Sweetlink not connected`;
+  }
+
+  /**
+   * Get the tooltip text for the AI review button based on current state
+   */
+  private getAIReviewTooltip(): string {
+    if (this.designReviewInProgress) {
+      return 'AI Design Review in progress...';
+    }
+    if (this.designReviewError) {
+      return `Design review failed:\n${this.designReviewError}`;
+    }
+    if (this.lastDesignReview) {
+      return `Design review saved to:\n${this.lastDesignReview}`;
+    }
+
+    const baseTooltip = `AI Design Review\n\nCaptures screenshot and sends to\nClaude for design analysis.\n\nRequires ANTHROPIC_API_KEY.`;
+    return this.sweetlinkConnected
+      ? baseTooltip
+      : `${baseTooltip}\n\nWarning: Sweetlink not connected`;
+  }
+
   private createAIReviewButton(): HTMLButtonElement {
     const btn = document.createElement('button');
     btn.type = 'button';
     btn.className = this.tooltipClass('right');
 
-    const tooltip = this.designReviewInProgress
-      ? 'AI Design Review in progress...'
-      : this.designReviewError
-        ? `Design review failed:\n${this.designReviewError}`
-        : this.lastDesignReview
-          ? `Design review saved to:\n${this.lastDesignReview}`
-          : `AI Design Review\n\nCaptures screenshot and sends to\nClaude for design analysis.\n\nRequires ANTHROPIC_API_KEY.${!this.sweetlinkConnected ? '\n\nWarning: Sweetlink not connected' : ''}`;
+    const tooltip = this.getAIReviewTooltip();
     btn.setAttribute('data-tooltip', tooltip);
 
     const hasError = !!this.designReviewError;
@@ -2174,10 +2385,12 @@ export class GlobalDevBar {
       btn.textContent = 'v';
       btn.style.fontSize = '0.5rem';
     } else {
-      btn.appendChild(createSvgIcon(
-        'M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 00-2.456 2.456zM16.894 20.567L16.5 21.75l-.394-1.183a2.25 2.25 0 00-1.423-1.423L13.5 18.75l1.183-.394a2.25 2.25 0 001.423-1.423l.394-1.183.394 1.183a2.25 2.25 0 001.423 1.423l1.183.394-1.183.394a2.25 2.25 0 00-1.423 1.423z',
-        { fill: true }
-      ));
+      btn.appendChild(
+        createSvgIcon(
+          'M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 00-2.456 2.456zM16.894 20.567L16.5 21.75l-.394-1.183a2.25 2.25 0 00-1.423-1.423L13.5 18.75l1.183-.394a2.25 2.25 0 001.423-1.423l.394-1.183.394 1.183a2.25 2.25 0 001.423 1.423l1.183.394-1.183.394a2.25 2.25 0 00-1.423 1.423z',
+          { fill: true }
+        )
+      );
     }
 
     return btn;
@@ -2201,7 +2414,9 @@ export class GlobalDevBar {
       btn.textContent = 'v';
       btn.style.fontSize = '0.5rem';
     } else {
-      btn.appendChild(createSvgIcon('M3 4h18v2H3V4zm0 7h12v2H3v-2zm0 7h18v2H3v-2z', { fill: true }));
+      btn.appendChild(
+        createSvgIcon('M3 4h18v2H3V4zm0 7h12v2H3v-2zm0 7h18v2H3v-2z', { fill: true })
+      );
     }
 
     return btn;
@@ -2225,10 +2440,12 @@ export class GlobalDevBar {
       btn.textContent = 'v';
       btn.style.fontSize = '0.5rem';
     } else {
-      btn.appendChild(createSvgIcon(
-        'M9.4 16.6L4.8 12l4.6-4.6L8 6l-6 6 6 6 1.4-1.4zm5.2 0l4.6-4.6-4.6-4.6L16 6l6 6-6 6-1.4-1.4z',
-        { fill: true }
-      ));
+      btn.appendChild(
+        createSvgIcon(
+          'M9.4 16.6L4.8 12l4.6-4.6L8 6l-6 6 6 6 1.4-1.4zm5.2 0l4.6-4.6-4.6-4.6L16 6l6 6-6 6-1.4-1.4z',
+          { fill: true }
+        )
+      );
     }
 
     return btn;
@@ -2262,7 +2479,7 @@ export function initGlobalDevBar(options?: GlobalDevBarOptions): GlobalDevBar {
   const existing = getGlobalInstance();
   if (existing) {
     // Check if already initialized with same position - skip re-init during HMR
-    const existingPosition = existing['options']?.position ?? 'bottom-left';
+    const existingPosition = existing.getPosition();
     const newPosition = options?.position ?? 'bottom-left';
     if (existingPosition === newPosition) {
       return existing;
