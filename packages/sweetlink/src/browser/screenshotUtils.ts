@@ -82,10 +82,7 @@ export interface ToDataUrlOptions {
  * @param options - Conversion options
  * @returns Data URL string
  */
-export function canvasToDataUrl(
-  canvas: HTMLCanvasElement,
-  options: ToDataUrlOptions = {}
-): string {
+export function canvasToDataUrl(canvas: HTMLCanvasElement, options: ToDataUrlOptions = {}): string {
   const { format = 'jpeg', quality = DEFAULT_SCREENSHOT_QUALITY } = options;
 
   if (format === 'png') {
@@ -142,7 +139,7 @@ export function prepareForCapture(): () => void {
  * @param ms - Milliseconds to wait
  */
 export function delay(ms: number): Promise<void> {
-  return new Promise(resolve => setTimeout(resolve, ms));
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 // ============================================================================
@@ -164,9 +161,7 @@ export async function copyCanvasToClipboard(canvas: HTMLCanvasElement): Promise<
       }
 
       try {
-        await navigator.clipboard.write([
-          new ClipboardItem({ 'image/png': blob })
-        ]);
+        await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
         resolve();
       } catch (error) {
         reject(error);
@@ -212,8 +207,8 @@ export function gatherScreenshotMetadata(
     timestamp: Date.now(),
     viewport: {
       width: window.innerWidth,
-      height: window.innerHeight
+      height: window.innerHeight,
     },
-    selector: selector || 'body'
+    selector: selector || 'body',
   };
 }

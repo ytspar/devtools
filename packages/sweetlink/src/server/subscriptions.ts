@@ -5,7 +5,7 @@
  */
 
 import type { WebSocket } from 'ws';
-import type { LogSubscription, ChannelSubscription } from '../types.js';
+import type { ChannelSubscription, LogSubscription } from '../types.js';
 
 // Internal subscription tracking interfaces (include WebSocket reference)
 export interface InternalLogSubscription extends LogSubscription {
@@ -34,7 +34,7 @@ export const pendingScreenshotRequests = new Map<string, PendingScreenshotReques
 export function cleanupClientSubscriptions(ws: WebSocket): void {
   // Remove from channel subscriptions
   for (const [_channel, subs] of channelSubscriptions) {
-    const idx = subs.findIndex(s => s.clientWs === ws);
+    const idx = subs.findIndex((s) => s.clientWs === ws);
     if (idx !== -1) {
       subs.splice(idx, 1);
     }

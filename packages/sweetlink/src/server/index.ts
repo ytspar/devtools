@@ -4,15 +4,15 @@
  * Main server module that handles WebSocket connections and message routing.
  */
 
-import { WebSocketServer, WebSocket } from 'ws';
 import { createServer, type IncomingMessage, type ServerResponse } from 'http';
+import { WebSocket, WebSocketServer } from 'ws';
 
 // Import types
 import type {
-  SweetlinkCommand,
-  SweetlinkResponse,
   ConsoleLog,
   HmrScreenshotData,
+  SweetlinkCommand,
+  SweetlinkResponse,
 } from '../types.js';
 
 // Import constants
@@ -20,23 +20,27 @@ import { PACKAGE_INFO, SCREENSHOT_REQUEST_TIMEOUT_MS } from './constants.js';
 
 // Import handlers
 import {
-  handleSaveScreenshot,
   handleDesignReviewScreenshot,
+  handleHmrScreenshot,
+  handleLoadSettings,
   handleSaveOutline,
   handleSaveSchema,
-  handleHmrScreenshot,
+  handleSaveScreenshot,
+  handleSaveSettings,
 } from './handlers/index.js';
 
 /**
  * Send a success response to the WebSocket client
  */
 function sendSuccess(ws: WebSocket, type: string, data: Record<string, unknown>): void {
-  ws.send(JSON.stringify({
-    success: true,
-    type,
-    timestamp: Date.now(),
-    ...data,
-  }));
+  ws.send(
+    JSON.stringify({
+      success: true,
+      type,
+      timestamp: Date.now(),
+      ...data,
+    })
+  );
 }
 
 /**
@@ -44,12 +48,14 @@ function sendSuccess(ws: WebSocket, type: string, data: Record<string, unknown>)
  */
 function sendError(ws: WebSocket, type: string, error: unknown): void {
   const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-  ws.send(JSON.stringify({
-    success: false,
-    type,
-    error: errorMessage,
-    timestamp: Date.now(),
-  }));
+  ws.send(
+    JSON.stringify({
+      success: false,
+      type,
+      error: errorMessage,
+      timestamp: Date.now(),
+    })
+  );
 }
 
 // Import Anthropic settings for API key check
@@ -57,10 +63,10 @@ import { CLAUDE_MODEL, CLAUDE_PRICING } from './anthropic.js';
 
 // Import subscription management
 import {
-  logSubscriptions,
   channelSubscriptions,
-  pendingScreenshotRequests,
   cleanupClientSubscriptions,
+  logSubscriptions,
+  pendingScreenshotRequests,
 } from './subscriptions.js';
 
 // Re-export types for backwards compatibility
@@ -92,10 +98,10 @@ function safeRegex(pattern: string): RegExp {
   }
   // Block patterns known to cause catastrophic backtracking
   const dangerousPatterns = [
-    /\(\.\*\)\+/,      // (.*)+
-    /\(\.\+\)\+/,      // (.+)+
-    /\([^)]*\+\)\+/,   // (a+)+
-    /\([^)]*\*\)\+/,   // (a*)+
+    /\(\.\*\)\+/, // (.*)+
+    /\(\.\+\)\+/, // (.+)+
+    /\([^)]*\+\)\+/, // (a+)+
+    /\([^)]*\*\)\+/, // (a*)+
   ];
   for (const dangerous of dangerousPatterns) {
     if (dangerous.test(pattern)) {
@@ -136,7 +142,7 @@ export function initSweetlink(options: InitSweetlinkOptions): Promise<WebSocketS
     }
 
     const maxRetries = options.maxPortRetries ?? 10;
-    let currentPort = options.port;
+    const currentPort = options.port;
     let attempts = 0;
 
     // Capture project root at initialization time (before any cwd changes)
@@ -157,16 +163,22 @@ export function initSweetlink(options: InitSweetlinkOptions): Promise<WebSocketS
         // Return package info for direct HTTP requests (not WebSocket upgrades)
         res.writeHead(200, {
           'Content-Type': 'application/json',
-          'Access-Control-Allow-Origin': '*'
+          'Access-Control-Allow-Origin': '*',
         });
-        res.end(JSON.stringify({
-          ...PACKAGE_INFO,
-          status: 'running',
-          port: port,
-          appPort: associatedAppPort,
-          connectedClients: clients.size,
-          uptime: process.uptime(),
-        }, null, 2));
+        res.end(
+          JSON.stringify(
+            {
+              ...PACKAGE_INFO,
+              status: 'running',
+              port: port,
+              appPort: associatedAppPort,
+              connectedClients: clients.size,
+              uptime: process.uptime(),
+            },
+            null,
+            2
+          )
+        );
       });
 
       httpServer.on('error', (error: NodeJS.ErrnoException) => {
@@ -197,7 +209,9 @@ export function initSweetlink(options: InitSweetlinkOptions): Promise<WebSocketS
         console.log(`[Sweetlink] WebSocket server started on ws://localhost:${port}`);
         console.log(`[Sweetlink] HTTP info available at http://localhost:${port}`);
         if (port !== options.port) {
-          console.log(`[Sweetlink] Note: Using alternative port (original ${options.port} was in use)`);
+          console.log(
+            `[Sweetlink] Note: Using alternative port (original ${options.port} was in use)`
+          );
         }
         options.onReady?.(port);
         setupServerHandlers(server);
@@ -226,8 +240,8 @@ function setupServerHandlers(server: WebSocketServer) {
 
     // Validate origin - only accept localhost connections
     if (origin) {
-      const isLocalhost = origin.startsWith('http://localhost:') ||
-                          origin.startsWith('http://127.0.0.1:');
+      const isLocalhost =
+        origin.startsWith('http://localhost:') || origin.startsWith('http://127.0.0.1:');
 
       if (!isLocalhost) {
         console.log(`[Sweetlink] Rejecting non-localhost connection from ${origin}`);
@@ -241,9 +255,11 @@ function setupServerHandlers(server: WebSocketServer) {
           `http://localhost:${associatedAppPort}`,
           `http://127.0.0.1:${associatedAppPort}`,
         ];
-        const isExpectedOrigin = expectedOrigins.some(expected => origin.startsWith(expected));
+        const isExpectedOrigin = expectedOrigins.some((expected) => origin.startsWith(expected));
         if (!isExpectedOrigin) {
-          console.warn(`[Sweetlink] Connection from unexpected port: ${origin} (expected port: ${associatedAppPort})`);
+          console.warn(
+            `[Sweetlink] Connection from unexpected port: ${origin} (expected port: ${associatedAppPort})`
+          );
           // Still allow but warn - strict mode could reject here
         }
       }
@@ -271,12 +287,14 @@ function setupServerHandlers(server: WebSocketServer) {
 
           // Send server info back to the browser so it can verify connection
           // Security: Don't expose projectDir to prevent path disclosure
-          ws.send(JSON.stringify({
-            type: 'server-info',
-            appPort: associatedAppPort,
-            wsPort: activePort,
-            timestamp: Date.now()
-          }));
+          ws.send(
+            JSON.stringify({
+              type: 'server-info',
+              appPort: associatedAppPort,
+              wsPort: activePort,
+              timestamp: Date.now(),
+            })
+          );
           return;
         }
 
@@ -286,13 +304,15 @@ function setupServerHandlers(server: WebSocketServer) {
           const hasKey = Boolean(apiKey && apiKey.length > 0);
 
           // Security: Only return boolean, don't expose any key info
-          ws.send(JSON.stringify({
-            type: 'api-key-status',
-            configured: hasKey,
-            model: CLAUDE_MODEL,
-            pricing: CLAUDE_PRICING,
-            timestamp: Date.now()
-          }));
+          ws.send(
+            JSON.stringify({
+              type: 'api-key-status',
+              configured: hasKey,
+              model: CLAUDE_MODEL,
+              pricing: CLAUDE_PRICING,
+              timestamp: Date.now(),
+            })
+          );
           return;
         }
 
@@ -301,22 +321,37 @@ function setupServerHandlers(server: WebSocketServer) {
         const isBrowserWithData = command.data && clientInfo?.type === 'browser';
 
         if (command.type === 'save-screenshot' && isBrowserWithData) {
-          const savedPath = await handleSaveScreenshot(command.data as Parameters<typeof handleSaveScreenshot>[0]);
-          console.log(`[Sweetlink] Screenshot saved to ${savedPath}`);
-          sendSuccess(ws, 'screenshot-saved', { path: savedPath });
+          try {
+            const savedPath = await handleSaveScreenshot(
+              command.data as Parameters<typeof handleSaveScreenshot>[0]
+            );
+            console.log(`[Sweetlink] Screenshot saved to ${savedPath}`);
+            sendSuccess(ws, 'screenshot-saved', { path: savedPath });
+          } catch (error) {
+            console.error(
+              '[Sweetlink] Screenshot save failed:',
+              error instanceof Error ? error.message : error
+            );
+            sendError(ws, 'screenshot-error', error);
+          }
           return;
         }
 
         if (command.type === 'design-review-screenshot' && isBrowserWithData) {
           try {
-            const result = await handleDesignReviewScreenshot(command.data as Parameters<typeof handleDesignReviewScreenshot>[0]);
+            const result = await handleDesignReviewScreenshot(
+              command.data as Parameters<typeof handleDesignReviewScreenshot>[0]
+            );
             console.log(`[Sweetlink] Design review saved to ${result.reviewPath}`);
             sendSuccess(ws, 'design-review-saved', {
               screenshotPath: result.screenshotPath,
               reviewPath: result.reviewPath,
             });
           } catch (error) {
-            console.error('[Sweetlink] Design review failed:', error instanceof Error ? error.message : error);
+            console.error(
+              '[Sweetlink] Design review failed:',
+              error instanceof Error ? error.message : error
+            );
             sendError(ws, 'design-review-error', error);
           }
           return;
@@ -324,11 +359,16 @@ function setupServerHandlers(server: WebSocketServer) {
 
         if (command.type === 'save-outline' && isBrowserWithData) {
           try {
-            const result = await handleSaveOutline(command.data as Parameters<typeof handleSaveOutline>[0]);
+            const result = await handleSaveOutline(
+              command.data as Parameters<typeof handleSaveOutline>[0]
+            );
             console.log(`[Sweetlink] Outline saved to ${result.outlinePath}`);
             sendSuccess(ws, 'outline-saved', { outlinePath: result.outlinePath });
           } catch (error) {
-            console.error('[Sweetlink] Outline save failed:', error instanceof Error ? error.message : error);
+            console.error(
+              '[Sweetlink] Outline save failed:',
+              error instanceof Error ? error.message : error
+            );
             sendError(ws, 'outline-error', error);
           }
           return;
@@ -336,12 +376,50 @@ function setupServerHandlers(server: WebSocketServer) {
 
         if (command.type === 'save-schema' && isBrowserWithData) {
           try {
-            const result = await handleSaveSchema(command.data as Parameters<typeof handleSaveSchema>[0]);
+            const result = await handleSaveSchema(
+              command.data as Parameters<typeof handleSaveSchema>[0]
+            );
             console.log(`[Sweetlink] Schema saved to ${result.schemaPath}`);
             sendSuccess(ws, 'schema-saved', { schemaPath: result.schemaPath });
           } catch (error) {
-            console.error('[Sweetlink] Schema save failed:', error instanceof Error ? error.message : error);
+            console.error(
+              '[Sweetlink] Schema save failed:',
+              error instanceof Error ? error.message : error
+            );
             sendError(ws, 'schema-error', error);
+          }
+          return;
+        }
+
+        // Handle save-settings from browser
+        if (command.type === 'save-settings' && isBrowserWithData) {
+          try {
+            const result = await handleSaveSettings(
+              command.data as Parameters<typeof handleSaveSettings>[0]
+            );
+            console.log(`[Sweetlink] Settings saved to ${result.settingsPath}`);
+            sendSuccess(ws, 'settings-saved', { settingsPath: result.settingsPath });
+          } catch (error) {
+            console.error(
+              '[Sweetlink] Settings save failed:',
+              error instanceof Error ? error.message : error
+            );
+            sendError(ws, 'settings-error', error);
+          }
+          return;
+        }
+
+        // Handle load-settings from browser
+        if (command.type === 'load-settings' && clientInfo?.type === 'browser') {
+          try {
+            const settings = await handleLoadSettings();
+            sendSuccess(ws, 'settings-loaded', { settings });
+          } catch (error) {
+            console.error(
+              '[Sweetlink] Settings load failed:',
+              error instanceof Error ? error.message : error
+            );
+            sendError(ws, 'settings-error', error);
           }
           return;
         }
@@ -360,13 +438,15 @@ function setupServerHandlers(server: WebSocketServer) {
             .map(([client]) => client);
 
           if (browserClients.length === 0) {
-            ws.send(JSON.stringify({
-              type: 'screenshot-response',
-              requestId,
-              success: false,
-              error: 'No browser client connected',
-              timestamp: Date.now()
-            }));
+            ws.send(
+              JSON.stringify({
+                type: 'screenshot-response',
+                requestId,
+                success: false,
+                error: 'No browser client connected',
+                timestamp: Date.now(),
+              })
+            );
             return;
           }
 
@@ -374,32 +454,40 @@ function setupServerHandlers(server: WebSocketServer) {
             const pending = pendingScreenshotRequests.get(requestId);
             if (pending) {
               pendingScreenshotRequests.delete(requestId);
-              pending.clientWs.send(JSON.stringify({
-                type: 'screenshot-response',
-                requestId,
-                success: false,
-                error: 'Screenshot request timed out',
-                timestamp: Date.now()
-              }));
+              pending.clientWs.send(
+                JSON.stringify({
+                  type: 'screenshot-response',
+                  requestId,
+                  success: false,
+                  error: 'Screenshot request timed out',
+                  timestamp: Date.now(),
+                })
+              );
             }
           }, SCREENSHOT_REQUEST_TIMEOUT_MS);
 
           pendingScreenshotRequests.set(requestId, { requestId, clientWs: ws, timeout });
 
-          browserClients[0].send(JSON.stringify({
-            type: 'request-screenshot',
-            requestId,
-            selector: command.selector,
-            format: command.format || 'jpeg',
-            quality: command.quality || 0.7,
-            scale: command.scale || 0.25,
-            includeMetadata: command.includeMetadata !== false
-          }));
+          browserClients[0].send(
+            JSON.stringify({
+              type: 'request-screenshot',
+              requestId,
+              selector: command.selector,
+              format: command.format || 'jpeg',
+              quality: command.quality || 0.7,
+              scale: command.scale || 0.25,
+              includeMetadata: command.includeMetadata !== false,
+            })
+          );
           return;
         }
 
         // Handle screenshot-response from browser
-        if (command.type === 'screenshot-response' && clientInfo?.type === 'browser' && command.requestId) {
+        if (
+          command.type === 'screenshot-response' &&
+          clientInfo?.type === 'browser' &&
+          command.requestId
+        ) {
           const pending = pendingScreenshotRequests.get(command.requestId);
           if (pending) {
             clearTimeout(pending.timeout);
@@ -430,7 +518,7 @@ function setupServerHandlers(server: WebSocketServer) {
           const channel = command.channel;
           if (channel && channelSubscriptions.has(channel)) {
             const subs = channelSubscriptions.get(channel)!;
-            const idx = subs.findIndex(s => s.clientWs === ws);
+            const idx = subs.findIndex((s) => s.clientWs === ws);
             if (idx !== -1) {
               subs.splice(idx, 1);
               console.log(`[Sweetlink] Client unsubscribed from channel: ${channel}`);
@@ -447,7 +535,7 @@ function setupServerHandlers(server: WebSocketServer) {
           logSubscriptions.set(subscriptionId, {
             subscriptionId,
             clientWs: ws,
-            filters: command.filters
+            filters: command.filters,
           });
           sendSuccess(ws, 'log-subscribed', { subscriptionId });
           return;
@@ -513,18 +601,22 @@ function setupServerHandlers(server: WebSocketServer) {
                   const regex = safeRegex(sub.filters.pattern);
                   if (!regex.test(log.message)) continue;
                 } catch {
-                  console.warn(`[Sweetlink] Skipping invalid regex pattern: ${sub.filters.pattern}`);
+                  console.warn(
+                    `[Sweetlink] Skipping invalid regex pattern: ${sub.filters.pattern}`
+                  );
                 }
               }
               if (sub.filters.source && log.source !== sub.filters.source) continue;
             }
 
-            sub.clientWs.send(JSON.stringify({
-              type: 'log-event',
-              subscriptionId: sub.subscriptionId,
-              log,
-              timestamp: Date.now()
-            }));
+            sub.clientWs.send(
+              JSON.stringify({
+                type: 'log-event',
+                subscriptionId: sub.subscriptionId,
+                log,
+                timestamp: Date.now(),
+              })
+            );
           }
           return;
         }
@@ -538,11 +630,13 @@ function setupServerHandlers(server: WebSocketServer) {
             .map(([client]) => client);
 
           if (browserClients.length === 0) {
-            ws.send(JSON.stringify({
-              success: false,
-              error: 'No browser client connected. Is the dev server running with the page open?',
-              timestamp: Date.now()
-            } as SweetlinkResponse));
+            ws.send(
+              JSON.stringify({
+                success: false,
+                error: 'No browser client connected. Is the dev server running with the page open?',
+                timestamp: Date.now(),
+              } as SweetlinkResponse)
+            );
             return;
           }
 
@@ -556,16 +650,17 @@ function setupServerHandlers(server: WebSocketServer) {
             cliClientMap.delete(ws);
           }
         }
-
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : 'Unknown error';
         console.error('[Sweetlink] Error processing message:', errorMessage);
 
-        ws.send(JSON.stringify({
-          success: false,
-          error: errorMessage,
-          timestamp: Date.now()
-        } as SweetlinkResponse));
+        ws.send(
+          JSON.stringify({
+            success: false,
+            error: errorMessage,
+            timestamp: Date.now(),
+          } as SweetlinkResponse)
+        );
       }
     });
 

@@ -41,6 +41,11 @@ export interface SweetlinkCommand {
     | 'api-key-status'
     | 'save-outline'
     | 'save-schema'
+    | 'save-settings'
+    | 'load-settings'
+    | 'settings-loaded'
+    | 'settings-saved'
+    | 'settings-error'
     | 'refresh'
     | 'request-screenshot'
     | 'screenshot-response'
@@ -68,6 +73,8 @@ export interface SweetlinkCommand {
   reviewPath?: string;
   outlinePath?: string;
   schemaPath?: string;
+  settingsPath?: string;
+  settings?: unknown;
   error?: string;
   // v1.4.0 fields
   requestId?: string;

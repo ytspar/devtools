@@ -1,6 +1,6 @@
 import * as fs from 'fs';
 import * as path from 'path';
-import { parseViewport, DEFAULT_VIEWPORT, VIEWPORT_PRESETS } from './viewportUtils.js';
+import { DEFAULT_VIEWPORT, parseViewport } from './viewportUtils.js';
 
 // ============================================================================
 // Constants
@@ -41,11 +41,15 @@ async function getPlaywright(): Promise<{ chromium: Chromium }> {
     const message = error instanceof Error ? error.message : String(error);
     if (message.includes('Cannot find module') || message.includes('ERR_MODULE_NOT_FOUND')) {
       console.error('[Sweetlink] Playwright is not installed.');
-      console.error('[Sweetlink] To use Playwright features (--force-cdp, --hover, auto-launch), install it:');
+      console.error(
+        '[Sweetlink] To use Playwright features (--force-cdp, --hover, auto-launch), install it:'
+      );
       console.error('[Sweetlink]   npm install playwright');
       console.error('[Sweetlink]   # or: pnpm add playwright');
       console.error('[Sweetlink] ');
-      console.error('[Sweetlink] Alternatively, use --force-ws to skip Playwright and use WebSocket mode.');
+      console.error(
+        '[Sweetlink] Alternatively, use --force-ws to skip Playwright and use WebSocket mode.'
+      );
       throw new Error('Playwright not installed. Install with: npm install playwright');
     }
     throw error;
@@ -66,7 +70,9 @@ function ensureDir(filePath: string): void {
  * Get a Playwright browser instance
  * Tries to connect to existing CDP first, then falls back to launching a new instance
  */
-export async function getBrowser(url?: string): Promise<{ browser: Browser; page: Page; isNew: boolean }> {
+export async function getBrowser(
+  url?: string
+): Promise<{ browser: Browser; page: Page; isNew: boolean }> {
   const { chromium } = await getPlaywright();
   const targetUrl = url || DEFAULT_DEV_URL;
 
@@ -76,7 +82,9 @@ export async function getBrowser(url?: string): Promise<{ browser: Browser; page
     // Add a short timeout for connection attempt
     const browser = await Promise.race([
       chromium.connectOverCDP(CDP_URL),
-      new Promise<never>((_, reject) => setTimeout(() => reject(new Error('Connection timeout')), CDP_CONNECTION_TIMEOUT_MS))
+      new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error('Connection timeout')), CDP_CONNECTION_TIMEOUT_MS)
+      ),
     ]);
 
     console.log('[Sweetlink] Connected to existing Chrome.');
@@ -85,7 +93,7 @@ export async function getBrowser(url?: string): Promise<{ browser: Browser; page
     const pages = context.pages();
 
     // Find page with matching URL
-    let page = pages.find(p => p.url() === targetUrl);
+    let page = pages.find((p) => p.url() === targetUrl);
     if (!page) {
       page = await context.newPage();
       console.log(`[Sweetlink] Navigating to ${targetUrl}...`);
@@ -97,10 +105,10 @@ export async function getBrowser(url?: string): Promise<{ browser: Browser; page
     // Fallback: Launch new browser
     console.log('[Sweetlink] Launching new browser instance...');
     const browser = await chromium.launch({
-      headless: true
+      headless: true,
     });
     const context = await browser.newContext({
-      viewport: DEFAULT_VIEWPORT
+      viewport: DEFAULT_VIEWPORT,
     });
     const page = await context.newPage();
 
@@ -169,30 +177,29 @@ export async function screenshotViaPlaywright(options: {
 
     let buffer: Buffer;
     if (options.selector) {
-       const locator = page.locator(options.selector).first();
-       console.log('[Sweetlink] Capturing element screenshot...');
-       buffer = await locator.screenshot({ path: options.output });
-       console.log('[Sweetlink] Element screenshot captured.');
+      const locator = page.locator(options.selector).first();
+      console.log('[Sweetlink] Capturing element screenshot...');
+      buffer = await locator.screenshot({ path: options.output });
+      console.log('[Sweetlink] Element screenshot captured.');
     } else {
-       console.log('[Sweetlink] Capturing full page screenshot...');
-       buffer = await page.screenshot({
-         path: options.output,
-         fullPage: options.fullPage
-       });
-       console.log('[Sweetlink] Full page screenshot captured.');
+      console.log('[Sweetlink] Capturing full page screenshot...');
+      buffer = await page.screenshot({
+        path: options.output,
+        fullPage: options.fullPage,
+      });
+      console.log('[Sweetlink] Full page screenshot captured.');
     }
 
     // Get dimensions
-    const size = options.selector 
+    const size = options.selector
       ? await page.locator(options.selector).first().boundingBox()
       : page.viewportSize();
-      
+
     return {
       buffer,
       width: size?.width || 0,
-      height: size?.height || 0
+      height: size?.height || 0,
     };
-
   } finally {
     // Only close if we launched it new. If we connected to existing, maybe keep it?
     // Actually, for a CLI tool, we should probably close the connection/browser we opened.

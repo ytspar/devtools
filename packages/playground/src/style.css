@@ -355,7 +355,9 @@ body {
   outline: none;
   border-color: var(--devbar-color-primary);
   background-color: rgba(10, 15, 26, 0.9);
-  box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.15), 0 0 12px var(--devbar-color-primary-glow);
+  box-shadow:
+    0 0 0 2px rgba(16, 185, 129, 0.15),
+    0 0 12px var(--devbar-color-primary-glow);
 }
 
 .form-group input::placeholder {
@@ -390,7 +392,9 @@ body {
   outline: none;
   border-color: var(--devbar-color-primary);
   background-color: rgba(10, 15, 26, 0.9);
-  box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.15), 0 0 12px var(--devbar-color-primary-glow);
+  box-shadow:
+    0 0 0 2px rgba(16, 185, 129, 0.15),
+    0 0 12px var(--devbar-color-primary-glow);
 }
 
 .form-group select option {
@@ -452,7 +456,7 @@ body {
 }
 
 .checkbox-wrapper input[type="checkbox"]:checked::after {
-  content: '';
+  content: "";
   position: absolute;
   left: 4px;
   top: 1px;
@@ -465,7 +469,9 @@ body {
 
 .checkbox-wrapper input[type="checkbox"]:focus {
   outline: none;
-  box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.2), 0 0 8px var(--devbar-color-primary-glow);
+  box-shadow:
+    0 0 0 2px rgba(16, 185, 129, 0.2),
+    0 0 8px var(--devbar-color-primary-glow);
 }
 
 /* Table - DevBar modal style */
@@ -722,7 +728,9 @@ body {
   outline: none;
   border-color: var(--devbar-color-primary);
   background-color: var(--devbar-color-bg-elevated);
-  box-shadow: 0 0 0 2px var(--devbar-color-border), 0 0 12px var(--devbar-color-primary-glow);
+  box-shadow:
+    0 0 0 2px var(--devbar-color-border),
+    0 0 12px var(--devbar-color-primary-glow);
 }
 
 .control-group select option {
@@ -750,7 +758,7 @@ body {
 }
 
 .control-group input[type="checkbox"]:checked::after {
-  content: '';
+  content: "";
   position: absolute;
   left: 4px;
   top: 1px;

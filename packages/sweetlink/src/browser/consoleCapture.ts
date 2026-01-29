@@ -57,14 +57,14 @@ export interface ConsoleCaptureConfig {
  */
 export function formatArg(arg: unknown): string {
   if (arg instanceof Error) {
-    return `${arg.name}: ${arg.message}${arg.stack ? '\n' + arg.stack : ''}`;
+    return `${arg.name}: ${arg.message}${arg.stack ? `\n${arg.stack}` : ''}`;
   }
   if (typeof arg === 'string' || typeof arg === 'number' || typeof arg === 'boolean') {
     return String(arg);
   }
   if (typeof arg === 'object' && arg !== null) {
     try {
-      return JSON.stringify(arg, (key, val) => {
+      return JSON.stringify(arg, (_key, val) => {
         if (val instanceof Error) {
           return `${val.name}: ${val.message}`;
         }
@@ -118,14 +118,14 @@ export class ConsoleCapture {
       log: console.log.bind(console),
       error: console.error.bind(console),
       warn: console.warn.bind(console),
-      info: console.info.bind(console)
+      info: console.info.bind(console),
     };
 
     const captureLog = (level: string, args: unknown[]) => {
       const log: ConsoleLog = {
         level,
         message: formatArgs(args),
-        timestamp: Date.now()
+        timestamp: Date.now(),
       };
 
       this.logs.push(log);
@@ -143,25 +143,15 @@ export class ConsoleCapture {
       }
     };
 
-    console.log = (...args) => {
-      captureLog('log', args);
-      this.originalConsole!.log(...args);
-    };
-
-    console.error = (...args) => {
-      captureLog('error', args);
-      this.originalConsole!.error(...args);
-    };
-
-    console.warn = (...args) => {
-      captureLog('warn', args);
-      this.originalConsole!.warn(...args);
-    };
-
-    console.info = (...args) => {
-      captureLog('info', args);
-      this.originalConsole!.info(...args);
-    };
+    // Patch all console methods with a unified wrapper
+    const levels = ['log', 'error', 'warn', 'info'] as const;
+    for (const level of levels) {
+      const original = this.originalConsole![level];
+      console[level] = (...args: unknown[]) => {
+        captureLog(level, args);
+        original(...args);
+      };
+    }
 
     this.isPatched = true;
   }
@@ -192,9 +182,8 @@ export class ConsoleCapture {
    */
   getFilteredLogs(filter: string): ConsoleLog[] {
     const filterLower = filter.toLowerCase();
-    return this.logs.filter(log =>
-      log.level === filterLower ||
-      log.message.toLowerCase().includes(filterLower)
+    return this.logs.filter(
+      (log) => log.level === filterLower || log.message.toLowerCase().includes(filterLower)
     );
   }
 
@@ -221,7 +210,7 @@ export class ConsoleCapture {
       errorCount: this.errorCount,
       warningCount: this.warningCount,
       originalConsole: this.originalConsole,
-      isPatched: this.isPatched
+      isPatched: this.isPatched,
     };
   }
 
@@ -259,7 +248,7 @@ export function createErrorHandler(
       message: `Uncaught: ${event.message}`,
       timestamp: Date.now(),
       source: event.filename,
-      stack: event.error?.stack
+      stack: event.error?.stack,
     });
 
     if (logsRef.logs.length > maxLogs) {
@@ -277,15 +266,16 @@ export function createRejectionHandler(
 ): (event: PromiseRejectionEvent) => void {
   return (event: PromiseRejectionEvent) => {
     const reason = event.reason;
-    const message = reason instanceof Error
-      ? `Unhandled rejection: ${reason.name}: ${reason.message}`
-      : `Unhandled rejection: ${String(reason)}`;
+    const message =
+      reason instanceof Error
+        ? `Unhandled rejection: ${reason.name}: ${reason.message}`
+        : `Unhandled rejection: ${String(reason)}`;
 
     logsRef.logs.push({
       level: 'error',
       message,
       timestamp: Date.now(),
-      stack: reason?.stack
+      stack: reason?.stack,
     });
 
     if (logsRef.logs.length > maxLogs) {

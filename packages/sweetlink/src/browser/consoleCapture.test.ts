@@ -1,13 +1,13 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { ConsoleLog } from '../types.js';
 import {
-  formatArg,
-  formatArgs,
   ConsoleCapture,
   createErrorHandler,
   createRejectionHandler,
+  formatArg,
+  formatArgs,
   MAX_CONSOLE_LOGS,
 } from './consoleCapture.js';
-import type { ConsoleLog } from '../types.js';
 
 describe('formatArg', () => {
   it('formats strings as-is', () => {
@@ -158,10 +158,12 @@ describe('ConsoleCapture', () => {
     console.log('test');
 
     expect(onLog).toHaveBeenCalledTimes(1);
-    expect(onLog).toHaveBeenCalledWith(expect.objectContaining({
-      level: 'log',
-      message: 'test',
-    }));
+    expect(onLog).toHaveBeenCalledWith(
+      expect.objectContaining({
+        level: 'log',
+        message: 'test',
+      })
+    );
 
     callbackCapture.stop();
   });
@@ -207,9 +209,7 @@ describe('ConsoleCapture', () => {
   });
 
   it('imports logs from another source', () => {
-    const existingLogs: ConsoleLog[] = [
-      { level: 'log', message: 'old log', timestamp: 1000 },
-    ];
+    const existingLogs: ConsoleLog[] = [{ level: 'log', message: 'old log', timestamp: 1000 }];
 
     capture.importLogs(existingLogs);
     capture.start();

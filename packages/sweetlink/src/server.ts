@@ -6,17 +6,17 @@
 
 // Re-export everything from the server module
 export {
-  initSweetlink,
   closeSweetlink,
-  getSweetlinkPort,
   getAssociatedAppPort,
+  getSweetlinkPort,
   type InitSweetlinkOptions,
+  initSweetlink,
 } from './server/index.js';
 
 // Re-export types for backwards compatibility
 export type {
-  SweetlinkCommand,
-  SweetlinkResponse,
   ConsoleLog,
   HmrScreenshotData,
+  SweetlinkCommand,
+  SweetlinkResponse,
 } from './types.js';

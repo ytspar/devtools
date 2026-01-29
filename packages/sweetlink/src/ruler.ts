@@ -291,18 +291,20 @@ export async function measureViaPlaywright(options: {
       showPosition: options.showPosition ?? false,
       showAlignment: options.showAlignment ?? true,
       limit: options.limit ?? 5,
-      colors: options.colors
+      colors: options.colors,
     };
 
-    const result = await page.evaluate(
+    const result = (await page.evaluate(
       `(${measureElementsScript})(${JSON.stringify(measureOptions)})`
-    ) as RulerOutput;
+    )) as RulerOutput;
 
     console.log(`[Sweetlink Ruler] Measured: ${result.summary}`);
 
     if (result.alignment) {
       const { verticalOffset, horizontalOffset, aligned } = result.alignment;
-      console.log(`[Sweetlink Ruler] Alignment: Δy=${verticalOffset}px, Δx=${horizontalOffset}px ${aligned ? '✓ ALIGNED' : '✗ NOT ALIGNED'}`);
+      console.log(
+        `[Sweetlink Ruler] Alignment: Δy=${verticalOffset}px, Δx=${horizontalOffset}px ${aligned ? '✓ ALIGNED' : '✗ NOT ALIGNED'}`
+      );
     }
 
     // Take screenshot if output path provided
@@ -320,7 +322,6 @@ export async function measureViaPlaywright(options: {
     }
 
     return { ...result, screenshotPath };
-
   } finally {
     console.log('[Sweetlink Ruler] Closing browser...');
     await browser.close();
@@ -333,13 +334,13 @@ export async function measureViaPlaywright(options: {
 export function getCardHeaderPreset(): MeasurementOptions {
   return {
     selectors: [
-      'article h2',                          // Card title text
-      'article header > div:first-child'     // Left wing (border line)
+      'article h2', // Card title text
+      'article header > div:first-child', // Left wing (border line)
     ],
     showCenterLines: true,
     showDimensions: true,
     showAlignment: true,
-    limit: 3
+    limit: 3,
   };
 }
 
@@ -348,13 +349,10 @@ export function getCardHeaderPreset(): MeasurementOptions {
  */
 export function getNavigationPreset(): MeasurementOptions {
   return {
-    selectors: [
-      'nav a',
-      'nav button'
-    ],
+    selectors: ['nav a', 'nav button'],
     showCenterLines: true,
     showDimensions: true,
     showAlignment: true,
-    limit: 10
+    limit: 10,
   };
 }

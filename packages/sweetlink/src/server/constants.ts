@@ -8,7 +8,8 @@
 export const PACKAGE_INFO = {
   name: '@ytspar/sweetlink',
   version: '1.0.0',
-  description: 'Autonomous development toolkit for AI agents - screenshots, DOM queries, console logs, and JavaScript execution via WebSocket and Chrome DevTools Protocol',
+  description:
+    'Autonomous development toolkit for AI agents - screenshots, DOM queries, console logs, and JavaScript execution via WebSocket and Chrome DevTools Protocol',
   documentation: 'https://github.com/ytspar/devtools/tree/main/packages/sweetlink',
   protocol: 'WebSocket',
   note: 'This is a WebSocket server. Connect using a WebSocket client (ws://localhost:<port>) instead of HTTP.',

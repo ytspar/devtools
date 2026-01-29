@@ -8,7 +8,7 @@
  * Symlinks are relative paths so they work across different environments.
  */
 
-import { existsSync, mkdirSync, symlinkSync, unlinkSync, readlinkSync } from 'fs';
+import { existsSync, mkdirSync, readlinkSync, symlinkSync, unlinkSync } from 'fs';
 import { dirname, join, relative } from 'path';
 import { fileURLToPath } from 'url';
 

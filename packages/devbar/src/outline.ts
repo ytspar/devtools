@@ -11,14 +11,39 @@ import type { OutlineNode } from './types.js';
 // ============================================================================
 
 const semanticElements = new Set([
-  'article', 'aside', 'nav', 'section',
-  'main', 'body',
-  'header', 'footer', 'figure', 'figcaption',
-  'details', 'summary', 'dialog', 'address', 'hgroup',
-  'form', 'fieldset', 'legend',
-  'ul', 'ol', 'dl', 'menu',
-  'table', 'thead', 'tbody', 'tfoot', 'caption',
-  'h1', 'h2', 'h3', 'h4', 'h5', 'h6'
+  'article',
+  'aside',
+  'nav',
+  'section',
+  'main',
+  'body',
+  'header',
+  'footer',
+  'figure',
+  'figcaption',
+  'details',
+  'summary',
+  'dialog',
+  'address',
+  'hgroup',
+  'form',
+  'fieldset',
+  'legend',
+  'ul',
+  'ol',
+  'dl',
+  'menu',
+  'table',
+  'thead',
+  'tbody',
+  'tfoot',
+  'caption',
+  'h1',
+  'h2',
+  'h3',
+  'h4',
+  'h5',
+  'h6',
 ]);
 
 const headingElements = new Set(['h1', 'h2', 'h3', 'h4', 'h5', 'h6']);
@@ -100,7 +125,9 @@ function getElementText(el: Element, tagName: string): string {
 
   // Sectioning elements: try direct child heading, then class name
   if (['section', 'article', 'aside'].includes(tagName)) {
-    const heading = el.querySelector(':scope > h1, :scope > h2, :scope > h3, :scope > h4, :scope > h5, :scope > h6');
+    const heading = el.querySelector(
+      ':scope > h1, :scope > h2, :scope > h3, :scope > h4, :scope > h5, :scope > h6'
+    );
     if (heading) return getTextContent(heading, 80);
     const className = el.className?.toString().split(' ')[0];
     if (className && className.length < 30) return className;
@@ -144,7 +171,15 @@ function extractFromElement(root: Element): OutlineNode[] {
     if (semanticElements.has(tagName)) {
       const text = getElementText(child, tagName);
       const isHeading = headingElements.has(tagName);
-      const isLandmark = ['main', 'nav', 'header', 'footer', 'article', 'section', 'aside'].includes(tagName);
+      const isLandmark = [
+        'main',
+        'nav',
+        'header',
+        'footer',
+        'article',
+        'section',
+        'aside',
+      ].includes(tagName);
       const hasText = text.length > 0;
 
       if (isHeading || isLandmark || hasText) {
@@ -156,7 +191,7 @@ function extractFromElement(root: Element): OutlineNode[] {
           text: text || `<${tagName}>`,
           id: child.id || undefined,
           children: [],
-          category: getSemanticCategory(tagName)
+          category: getSemanticCategory(tagName),
         };
 
         if (!isHeading) {

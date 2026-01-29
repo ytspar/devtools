@@ -6,11 +6,7 @@
 
 import { promises as fs } from 'fs';
 import { join } from 'path';
-import {
-  generateSlugFromUrl,
-  generateBaseFilename,
-  SCREENSHOT_DIR,
-} from '../../urlUtils.js';
+import { generateBaseFilename, generateSlugFromUrl, SCREENSHOT_DIR } from '../../urlUtils.js';
 import { getProjectRoot } from '../index.js';
 
 export interface OutlineSaveResult {

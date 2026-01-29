@@ -19,7 +19,7 @@ export function extractPageSchema(): PageSchema {
     metaTags: {},
     openGraph: {},
     twitter: {},
-    microdata: []
+    microdata: [],
   };
 
   // Extract JSON-LD
@@ -56,9 +56,11 @@ export function extractPageSchema(): PageSchema {
 
     item.querySelectorAll('[itemprop]').forEach((prop) => {
       const propName = prop.getAttribute('itemprop') || '';
-      const propValue = prop.getAttribute('content') ||
-                       prop.getAttribute('href') ||
-                       prop.textContent?.trim().slice(0, 200) || '';
+      const propValue =
+        prop.getAttribute('content') ||
+        prop.getAttribute('href') ||
+        prop.textContent?.trim().slice(0, 200) ||
+        '';
       if (propName) props[propName] = propValue;
     });
 
@@ -80,7 +82,7 @@ export function schemaToMarkdown(schema: PageSchema): string {
     md += '## JSON-LD\n\n';
     schema.jsonLd.forEach((item, i) => {
       md += `### Schema ${i + 1}\n\n`;
-      md += '```json\n' + JSON.stringify(item, null, 2) + '\n```\n\n';
+      md += `\`\`\`json\n${JSON.stringify(item, null, 2)}\n\`\`\`\n\n`;
     });
   }
 

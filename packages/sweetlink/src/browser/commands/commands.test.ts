@@ -1,8 +1,8 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { handleGetLogs } from './logs.js';
-import { handleExecJS } from './exec.js';
-import { handleQueryDOM } from './dom.js';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import type { ConsoleLog, SweetlinkCommand } from '../../types.js';
+import { handleQueryDOM } from './dom.js';
+import { handleExecJS } from './exec.js';
+import { handleGetLogs } from './logs.js';
 
 describe('handleGetLogs', () => {
   const sampleLogs: ConsoleLog[] = [
@@ -196,7 +196,7 @@ describe('handleQueryDOM', () => {
     const command: SweetlinkCommand = {
       type: 'query-dom',
       selector: 'div',
-      property: 'computedStyle'
+      property: 'computedStyle',
     };
     const response = handleQueryDOM(command);
 
@@ -212,7 +212,7 @@ describe('handleQueryDOM', () => {
     const command: SweetlinkCommand = {
       type: 'query-dom',
       selector: 'div',
-      property: 'boundingRect'
+      property: 'boundingRect',
     };
     const response = handleQueryDOM(command);
 
@@ -229,7 +229,7 @@ describe('handleQueryDOM', () => {
     const command: SweetlinkCommand = {
       type: 'query-dom',
       selector: 'div',
-      property: 'attributes'
+      property: 'attributes',
     };
     const response = handleQueryDOM(command);
 

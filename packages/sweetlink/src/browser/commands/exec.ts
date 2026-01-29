@@ -45,9 +45,9 @@ export function handleExecJS(command: SweetlinkCommand): SweetlinkResponse {
       success: true,
       data: {
         result: typeof result === 'object' ? JSON.parse(JSON.stringify(result)) : result,
-        type: typeof result
+        type: typeof result,
       },
-      timestamp: Date.now()
+      timestamp: Date.now(),
     };
   } catch (error) {
     return errorResponse(error instanceof Error ? error.message : 'Execution failed');

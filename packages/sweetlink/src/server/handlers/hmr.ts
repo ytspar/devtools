@@ -6,12 +6,9 @@
 
 import { promises as fs } from 'fs';
 import { join } from 'path';
-import type { HmrScreenshotData } from '../../types.js';
-import {
-  generateBaseFilename,
-  HMR_SCREENSHOT_DIR,
-} from '../../urlUtils.js';
 import { extractBase64FromDataUrl } from '../../browser/screenshotUtils.js';
+import type { HmrScreenshotData } from '../../types.js';
+import { generateBaseFilename, HMR_SCREENSHOT_DIR } from '../../urlUtils.js';
 import { getProjectRoot } from '../index.js';
 
 export interface HmrScreenshotResult {
@@ -36,13 +33,19 @@ interface FormattedLog {
 /**
  * Format a console log for JSON serialization
  */
-function formatLogForJson(log: { timestamp: number; level: string; message: string; stack?: string; source?: string }): FormattedLog {
+function formatLogForJson(log: {
+  timestamp: number;
+  level: string;
+  message: string;
+  stack?: string;
+  source?: string;
+}): FormattedLog {
   return {
     timestamp: new Date(log.timestamp).toISOString(),
     level: log.level,
     message: log.message,
     stack: log.stack,
-    source: log.source
+    source: log.source,
   };
 }
 
@@ -71,7 +74,7 @@ export async function handleHmrScreenshot(data: HmrScreenshotData): Promise<HmrS
     totalLogs: logs.all.length,
     errorCount,
     warningCount,
-    hasNewErrors: errorCount > 0 // In a real implementation, we'd track previous error count
+    hasNewErrors: errorCount > 0, // In a real implementation, we'd track previous error count
   };
 
   // Save logs as JSON
@@ -82,14 +85,14 @@ export async function handleHmrScreenshot(data: HmrScreenshotData): Promise<HmrS
       url,
       trigger,
       changedFile,
-      hmrMetadata
+      hmrMetadata,
     },
     summary: logSummary,
     logs: {
       all: logs.all.map(formatLogForJson),
       errors: logs.errors.map(formatLogForJson),
-      warnings: logs.warnings.map(formatLogForJson)
-    }
+      warnings: logs.warnings.map(formatLogForJson),
+    },
   };
   await fs.writeFile(logsPath, JSON.stringify(logsJson, null, 2), 'utf-8');
 
@@ -97,7 +100,9 @@ export async function handleHmrScreenshot(data: HmrScreenshotData): Promise<HmrS
   const errorEmoji = errorCount > 0 ? '❌' : '✓';
   const warnEmoji = warningCount > 0 ? '⚠️' : '✓';
   console.log(`[Sweetlink] HMR screenshot saved: ${screenshotPath}`);
-  console.log(`[Sweetlink] Logs: ${logs.all.length} total | ${warnEmoji} ${warningCount} warnings | ${errorEmoji} ${errorCount} errors`);
+  console.log(
+    `[Sweetlink] Logs: ${logs.all.length} total | ${warnEmoji} ${warningCount} warnings | ${errorEmoji} ${errorCount} errors`
+  );
 
   // If there are errors, log them
   if (errorCount > 0) {

@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { extractDocumentOutline, outlineToMarkdown } from './outline.js';
 import type { OutlineNode } from './types.js';
 
@@ -243,7 +243,7 @@ describe('extractDocumentOutline', () => {
     expect(outline[0].children.length).toBe(1);
     expect(outline[0].children[0].tagName).toBe('article');
     // Headings are extracted at article level, not as children
-    expect(outline[0].children[0].children.some(c => c.tagName === 'section')).toBe(true);
+    expect(outline[0].children[0].children.some((c) => c.tagName === 'section')).toBe(true);
   });
 });
 

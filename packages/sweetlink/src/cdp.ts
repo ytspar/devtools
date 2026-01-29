@@ -5,8 +5,14 @@
  * to connect to a Chrome instance running with remote debugging enabled.
  */
 
-import puppeteer, { type Browser, type Page, type ConsoleMessage, type HTTPRequest, type HTTPResponse } from 'puppeteer-core';
 import * as fs from 'fs';
+import puppeteer, {
+  type Browser,
+  type ConsoleMessage,
+  type HTTPRequest,
+  type HTTPResponse,
+  type Page,
+} from 'puppeteer-core';
 import { parseViewport } from './viewportUtils.js';
 
 // ============================================================================
@@ -43,12 +49,14 @@ export async function getCDPBrowser() {
   try {
     const browser = await puppeteer.connect({
       browserURL: CDP_URL,
-      defaultViewport: null
+      defaultViewport: null,
     });
     return browser;
   } catch (_error) {
     const errorMessage = _error instanceof Error ? _error.message : 'Failed to connect to Chrome';
-    throw new Error(`CDP connection failed: ${errorMessage}\n\nMake sure Chrome is running with:\n/Applications/Google\\ Chrome.app/Contents/MacOS/Google\\ Chrome --remote-debugging-port=9222`);
+    throw new Error(
+      `CDP connection failed: ${errorMessage}\n\nMake sure Chrome is running with:\n/Applications/Google\\ Chrome.app/Contents/MacOS/Google\\ Chrome --remote-debugging-port=9222`
+    );
   }
 }
 
@@ -64,7 +72,9 @@ export async function findLocalDevPage(browser: Browser) {
 
   // If no dev page found, navigate to localhost:3000
   if (!devPage) {
-    console.log(`[Sweetlink CDP] No localhost:3000 page found, navigating to ${DEFAULT_DEV_URL}...`);
+    console.log(
+      `[Sweetlink CDP] No localhost:3000 page found, navigating to ${DEFAULT_DEV_URL}...`
+    );
 
     // Use the first page or create a new one
     if (pages.length > 0) {
@@ -103,13 +113,16 @@ export async function screenshotViaCDP(options: {
       height: viewport.height,
       deviceScaleFactor: 1,
       isMobile: viewport.isMobile,
-      hasTouch: viewport.isMobile
+      hasTouch: viewport.isMobile,
     });
 
     // Wait for network to be idle (like Playwright's networkidle)
     if (options.waitForNetwork !== false) {
       try {
-        await page.waitForNetworkIdle({ timeout: NETWORK_IDLE_TIMEOUT_MS, idleTime: NETWORK_IDLE_TIME_MS });
+        await page.waitForNetworkIdle({
+          timeout: NETWORK_IDLE_TIMEOUT_MS,
+          idleTime: NETWORK_IDLE_TIME_MS,
+        });
       } catch {
         console.warn('[Sweetlink CDP] Network idle timeout, proceeding with screenshot');
       }
@@ -117,7 +130,7 @@ export async function screenshotViaCDP(options: {
 
     const screenshotOptions: any = {
       type: 'png',
-      fullPage: options.fullPage || false
+      fullPage: options.fullPage || false,
     };
 
     // If selector is provided, screenshot just that element
@@ -130,7 +143,7 @@ export async function screenshotViaCDP(options: {
           try {
             await page.hover(options.selector);
             // Give it a moment for transitions
-            await new Promise(r => setTimeout(r, HOVER_TRANSITION_DELAY_MS));
+            await new Promise((r) => setTimeout(r, HOVER_TRANSITION_DELAY_MS));
           } catch (e) {
             console.warn(`[Sweetlink CDP] Failed to hover over ${options.selector}:`, e);
           }
@@ -148,11 +161,13 @@ export async function screenshotViaCDP(options: {
             x: boundingBox.x,
             y: boundingBox.y,
             width: boundingBox.width,
-            height: boundingBox.height
+            height: boundingBox.height,
           };
         }
       } catch (_error) {
-        throw new Error(`Failed to find element "${options.selector}": ${_error instanceof Error ? _error.message : _error}`);
+        throw new Error(
+          `Failed to find element "${options.selector}": ${_error instanceof Error ? _error.message : _error}`
+        );
       }
     }
 
@@ -173,9 +188,8 @@ export async function screenshotViaCDP(options: {
     return {
       buffer,
       width: Math.round(dimensions.width),
-      height: Math.round(dimensions.height)
+      height: Math.round(dimensions.height),
     };
-
   } finally {
     await browser.disconnect();
   }
@@ -184,12 +198,14 @@ export async function screenshotViaCDP(options: {
 /**
  * Get console logs from the page
  */
-export async function getConsoleLogsViaCDP(): Promise<Array<{
-  type: string;
-  text: string;
-  location?: { url?: string; lineNumber?: number };
-  timestamp: number;
-}>> {
+export async function getConsoleLogsViaCDP(): Promise<
+  Array<{
+    type: string;
+    text: string;
+    location?: { url?: string; lineNumber?: number };
+    timestamp: number;
+  }>
+> {
   const browser = await getCDPBrowser();
 
   try {
@@ -208,15 +224,14 @@ export async function getConsoleLogsViaCDP(): Promise<Array<{
         type: msg.type(),
         text: msg.text(),
         location: msg.location(),
-        timestamp: Date.now()
+        timestamp: Date.now(),
       });
     });
 
     // Wait a bit to collect any immediate logs
-    await new Promise(resolve => setTimeout(resolve, CONSOLE_LOG_COLLECT_DELAY_MS));
+    await new Promise((resolve) => setTimeout(resolve, CONSOLE_LOG_COLLECT_DELAY_MS));
 
     return logs;
-
   } finally {
     await browser.disconnect();
   }
@@ -231,25 +246,28 @@ export async function queryDOMViaCDP(selector: string, property?: string): Promi
   try {
     const page = await findLocalDevPage(browser);
 
-    const result = await page.evaluate((sel: string, prop: string | undefined) => {
-      const elements = Array.from(document.querySelectorAll(sel));
+    const result = await page.evaluate(
+      (sel: string, prop: string | undefined) => {
+        const elements = Array.from(document.querySelectorAll(sel));
 
-      return elements.map(el => {
-        if (prop) {
-          return (el as any)[prop];
-        }
+        return elements.map((el) => {
+          if (prop) {
+            return (el as any)[prop];
+          }
 
-        return {
-          tagName: el.tagName,
-          className: el.className,
-          id: el.id,
-          textContent: el.textContent?.trim().slice(0, 100)
-        };
-      });
-    }, selector, property);
+          return {
+            tagName: el.tagName,
+            className: el.className,
+            id: el.id,
+            textContent: el.textContent?.trim().slice(0, 100),
+          };
+        });
+      },
+      selector,
+      property
+    );
 
     return result;
-
   } finally {
     await browser.disconnect();
   }
@@ -296,7 +314,6 @@ export async function execJSViaCDP(code: string): Promise<unknown> {
     }, code);
 
     return result;
-
   } finally {
     await browser.disconnect();
   }
@@ -305,16 +322,16 @@ export async function execJSViaCDP(code: string): Promise<unknown> {
 /**
  * Get network requests from the page
  */
-export async function getNetworkRequestsViaCDP(options?: {
-  filter?: string;
-}): Promise<Array<{
-  url: string;
-  method: string;
-  status?: number;
-  statusText?: string;
-  resourceType?: string;
-  timestamp: number;
-}>> {
+export async function getNetworkRequestsViaCDP(options?: { filter?: string }): Promise<
+  Array<{
+    url: string;
+    method: string;
+    status?: number;
+    statusText?: string;
+    resourceType?: string;
+    timestamp: number;
+  }>
+> {
   const browser = await getCDPBrowser();
 
   try {
@@ -342,7 +359,7 @@ export async function getNetworkRequestsViaCDP(options?: {
         url,
         method: request.method(),
         resourceType: request.resourceType(),
-        timestamp: Date.now()
+        timestamp: Date.now(),
       });
     });
 
@@ -350,7 +367,7 @@ export async function getNetworkRequestsViaCDP(options?: {
       const url = response.url();
 
       // Find matching request
-      const request = requests.find(r => r.url === url && !r.status);
+      const request = requests.find((r) => r.url === url && !r.status);
 
       if (request) {
         request.status = response.status();
@@ -359,10 +376,9 @@ export async function getNetworkRequestsViaCDP(options?: {
     });
 
     // Wait a bit to collect requests
-    await new Promise(resolve => setTimeout(resolve, NETWORK_REQUEST_COLLECT_DELAY_MS));
+    await new Promise((resolve) => setTimeout(resolve, NETWORK_REQUEST_COLLECT_DELAY_MS));
 
     return requests;
-
   } finally {
     await browser.disconnect();
   }
@@ -381,22 +397,27 @@ export async function getPerformanceMetricsViaCDP() {
 
     const performanceTimings = await page.evaluate(() => {
       const perfData = window.performance.timing;
-      const navigation = window.performance.getEntriesByType('navigation')[0] as PerformanceNavigationTiming;
+      const navigation = window.performance.getEntriesByType(
+        'navigation'
+      )[0] as PerformanceNavigationTiming;
 
       return {
-        domContentLoaded: navigation?.domContentLoadedEventEnd - navigation?.domContentLoadedEventStart,
+        domContentLoaded:
+          navigation?.domContentLoadedEventEnd - navigation?.domContentLoadedEventStart,
         loadComplete: navigation?.loadEventEnd - navigation?.loadEventStart,
         domInteractive: perfData.domInteractive - perfData.navigationStart,
-        firstPaint: performance.getEntriesByType('paint').find(e => e.name === 'first-paint')?.startTime,
-        firstContentfulPaint: performance.getEntriesByType('paint').find(e => e.name === 'first-contentful-paint')?.startTime
+        firstPaint: performance.getEntriesByType('paint').find((e) => e.name === 'first-paint')
+          ?.startTime,
+        firstContentfulPaint: performance
+          .getEntriesByType('paint')
+          .find((e) => e.name === 'first-contentful-paint')?.startTime,
       };
     });
 
     return {
       metrics,
-      timings: performanceTimings
+      timings: performanceTimings,
     };
-
   } finally {
     await browser.disconnect();
   }
@@ -421,7 +442,7 @@ export async function testCDPConnection(): Promise<{
     const pageInfo = await Promise.all(
       pages.map(async (page) => ({
         url: page.url(),
-        title: await page.title()
+        title: await page.title(),
       }))
     );
 
@@ -429,14 +450,13 @@ export async function testCDPConnection(): Promise<{
 
     return {
       connected: true,
-      browserVersion: versionInfo['Browser'],
-      pages: pageInfo
+      browserVersion: versionInfo.Browser,
+      pages: pageInfo,
     };
-
   } catch (_error) {
     return {
       connected: false,
-      error: _error instanceof Error ? _error.message : 'Unknown error'
+      error: _error instanceof Error ? _error.message : 'Unknown error',
     };
   }
 }

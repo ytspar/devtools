@@ -7,10 +7,10 @@
 import html2canvas from 'html2canvas-pro';
 import type { ConsoleLog, HmrScreenshotData } from '../types.js';
 import {
-  scaleCanvas,
   canvasToDataUrl,
+  DEFAULT_SCREENSHOT_QUALITY,
   DEFAULT_SCREENSHOT_SCALE,
-  DEFAULT_SCREENSHOT_QUALITY
+  scaleCanvas,
 } from './screenshotUtils.js';
 
 export interface HmrCaptureConfig {
@@ -29,7 +29,11 @@ export interface HmrCaptureState {
  * Returns a cleanup function to remove the listeners
  */
 export function setupHmrDetection(
-  onCapture: (trigger: string, changedFile?: string, hmrMetadata?: HmrScreenshotData['hmrMetadata']) => void
+  onCapture: (
+    trigger: string,
+    changedFile?: string,
+    hmrMetadata?: HmrScreenshotData['hmrMetadata']
+  ) => void
 ): () => void {
   console.log('[Sweetlink] Setting up HMR detection for automatic screenshots');
 
@@ -55,7 +59,7 @@ export function setupHmrDetection(
 
   // Return combined cleanup function
   return () => {
-    cleanupFunctions.forEach(fn => fn());
+    cleanupFunctions.forEach((fn) => fn());
   };
 }
 
@@ -88,23 +92,26 @@ export async function captureHmrScreenshot(
   state.lastCaptureTime = now;
 
   // Wait for DOM to settle
-  await new Promise(resolve => setTimeout(resolve, config.captureDelay));
+  await new Promise((resolve) => setTimeout(resolve, config.captureDelay));
 
   try {
     const originalCanvas = await html2canvas(document.body, {
       logging: false,
       useCORS: true,
-      allowTaint: true
+      allowTaint: true,
     });
 
     // Scale down for efficiency using shared utility
     const smallCanvas = scaleCanvas(originalCanvas, { scale: DEFAULT_SCREENSHOT_SCALE });
-    const dataUrl = canvasToDataUrl(smallCanvas, { format: 'jpeg', quality: DEFAULT_SCREENSHOT_QUALITY });
+    const dataUrl = canvasToDataUrl(smallCanvas, {
+      format: 'jpeg',
+      quality: DEFAULT_SCREENSHOT_QUALITY,
+    });
 
     // Prepare logs
     const allLogs = [...consoleLogs];
-    const errors = allLogs.filter(l => l.level === 'error');
-    const warnings = allLogs.filter(l => l.level === 'warn');
+    const errors = allLogs.filter((l) => l.level === 'error');
+    const warnings = allLogs.filter((l) => l.level === 'warn');
 
     state.sequence++;
 
@@ -119,18 +126,19 @@ export async function captureHmrScreenshot(
         all: allLogs,
         errors,
         warnings,
-        sinceLastCapture: allLogs.length
+        sinceLastCapture: allLogs.length,
       },
-      hmrMetadata
+      hmrMetadata,
     };
 
-    ws.send(JSON.stringify({
-      type: 'hmr-screenshot',
-      data: hmrData
-    }));
+    ws.send(
+      JSON.stringify({
+        type: 'hmr-screenshot',
+        data: hmrData,
+      })
+    );
 
     console.log(`[Sweetlink] HMR screenshot captured (${trigger})`);
-
   } catch (error) {
     console.error('[Sweetlink] HMR screenshot capture failed:', error);
   }

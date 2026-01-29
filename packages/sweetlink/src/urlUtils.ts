@@ -96,11 +96,7 @@ export function formatTimestampForFilename(timestamp: number): string {
  * // Returns: 'outline-company-page-2024-01-15T10-30-45-123Z'
  * ```
  */
-export function generateBaseFilename(
-  type: string,
-  timestamp: number,
-  slug?: string
-): string {
+export function generateBaseFilename(type: string, timestamp: number, slug?: string): string {
   const dateStr = formatTimestampForFilename(timestamp);
 
   if (slug) {

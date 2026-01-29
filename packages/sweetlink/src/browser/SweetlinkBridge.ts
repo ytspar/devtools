@@ -7,30 +7,29 @@
  * @version 2.1.0
  */
 
-import type { ConsoleLog, SweetlinkCommand, SweetlinkResponse, ServerInfo } from '../types.js';
-import {
-  formatArgs,
-  MAX_CONSOLE_LOGS,
-  createErrorHandler,
-  createRejectionHandler,
-  type OriginalConsoleMethods
-} from './consoleCapture.js';
-
+import type { ConsoleLog, ServerInfo, SweetlinkCommand, SweetlinkResponse } from '../types.js';
 // Import command handlers
 import {
-  handleScreenshot,
-  handleRequestScreenshot,
-  handleQueryDOM,
-  handleGetLogs,
   handleExecJS,
+  handleGetLogs,
+  handleQueryDOM,
+  handleRequestScreenshot,
+  handleScreenshot,
 } from './commands/index.js';
+import {
+  createErrorHandler,
+  createRejectionHandler,
+  formatArgs,
+  MAX_CONSOLE_LOGS,
+  type OriginalConsoleMethods,
+} from './consoleCapture.js';
 
 // Import HMR utilities
 import {
-  setupHmrDetection,
   captureHmrScreenshot,
-  type HmrCaptureState,
   type HmrCaptureConfig,
+  type HmrCaptureState,
+  setupHmrDetection,
 } from './hmr.js';
 
 // ============================================================================
@@ -87,7 +86,6 @@ export class SweetlinkBridge {
   private readonly hmrScreenshots: boolean;
   private readonly hmrConfig: HmrCaptureConfig;
   private readonly currentAppPort: number;
-  private currentPort: number = DEFAULT_WS_PORT;
 
   // Cleanup functions
   private cleanupFunctions: (() => void)[] = [];
@@ -104,22 +102,22 @@ export class SweetlinkBridge {
         captureDelay: DEFAULT_HMR_CAPTURE_DELAY_MS,
       };
       this.currentAppPort = 0;
-      this.currentPort = DEFAULT_WS_PORT;
       this.originalConsole = {
         log: console.log,
         error: console.error,
         warn: console.warn,
-        info: console.info
+        info: console.info,
       };
       return;
     }
 
     // Calculate app port from URL
-    this.currentAppPort = parseInt(window.location.port, 10) ||
-      (window.location.protocol === 'https:' ? 443 : 80);
+    this.currentAppPort =
+      parseInt(window.location.port, 10) || (window.location.protocol === 'https:' ? 443 : 80);
 
     // Calculate expected WS port (appPort + port offset)
-    this.basePort = config.basePort ??
+    this.basePort =
+      config.basePort ??
       (this.currentAppPort > 0 ? this.currentAppPort + SWEETLINK_PORT_OFFSET : DEFAULT_WS_PORT);
 
     this.maxPortRetries = config.maxPortRetries ?? DEFAULT_MAX_PORT_RETRIES;
@@ -128,14 +126,13 @@ export class SweetlinkBridge {
       debounceMs: config.hmrDebounceMs ?? DEFAULT_HMR_DEBOUNCE_MS,
       captureDelay: config.hmrCaptureDelay ?? DEFAULT_HMR_CAPTURE_DELAY_MS,
     };
-    this.currentPort = this.basePort;
 
     // Store original console methods
     this.originalConsole = {
       log: console.log.bind(console),
       error: console.error.bind(console),
       warn: console.warn.bind(console),
-      info: console.info.bind(console)
+      info: console.info.bind(console),
     };
   }
 
@@ -202,7 +199,7 @@ export class SweetlinkBridge {
     console.info = this.originalConsole.info;
 
     // Run cleanup functions
-    this.cleanupFunctions.forEach(fn => fn());
+    this.cleanupFunctions.forEach((fn) => fn());
     this.cleanupFunctions = [];
 
     // Clear console logs array to free memory
@@ -238,7 +235,7 @@ export class SweetlinkBridge {
       this.consoleLogs.push({
         level,
         message: formatArgs(args),
-        timestamp: Date.now()
+        timestamp: Date.now(),
       });
 
       // Keep only last N logs
@@ -247,25 +244,15 @@ export class SweetlinkBridge {
       }
     };
 
-    console.log = (...args) => {
-      captureLog('log', args);
-      this.originalConsole.log(...args);
-    };
-
-    console.error = (...args) => {
-      captureLog('error', args);
-      this.originalConsole.error(...args);
-    };
-
-    console.warn = (...args) => {
-      captureLog('warn', args);
-      this.originalConsole.warn(...args);
-    };
-
-    console.info = (...args) => {
-      captureLog('info', args);
-      this.originalConsole.info(...args);
-    };
+    // Patch all console methods with a unified wrapper
+    const levels = ['log', 'error', 'warn', 'info'] as const;
+    for (const level of levels) {
+      const original = this.originalConsole[level];
+      console[level] = (...args: unknown[]) => {
+        captureLog(level, args);
+        original(...args);
+      };
+    }
   }
 
   private setupErrorHandlers(): void {
@@ -286,14 +273,15 @@ export class SweetlinkBridge {
     const wsUrl = `ws://localhost:${port}`;
     const ws = new WebSocket(wsUrl);
     this.ws = ws;
-    this.currentPort = port;
     this.verified = false;
 
     // Timeout for server-info response
     const verificationTimeout = setTimeout(() => {
       if (!this.verified && ws.readyState === WebSocket.OPEN) {
         // Server didn't send server-info (old version) - accept for backwards compatibility
-        console.log(`[Sweetlink] Server on port ${port} is old version (no server-info). Accepting for backwards compatibility.`);
+        console.log(
+          `[Sweetlink] Server on port ${port} is old version (no server-info). Accepting for backwards compatibility.`
+        );
         this.verified = true;
         this.connected = true;
       }
@@ -330,14 +318,18 @@ export class SweetlinkBridge {
             const serverMatchesApp = info.appPort === null || info.appPort === this.currentAppPort;
 
             if (!serverMatchesApp) {
-              console.log(`[Sweetlink] Server is for port ${info.appPort}, but we're on port ${this.currentAppPort}. Trying next port...`);
+              console.log(
+                `[Sweetlink] Server is for port ${info.appPort}, but we're on port ${this.currentAppPort}. Trying next port...`
+              );
               ws.close();
 
               const nextPort = port + 1;
               if (nextPort < this.basePort + this.maxPortRetries) {
                 setTimeout(() => this.connectWebSocket(nextPort), PORT_RETRY_DELAY_MS);
               } else {
-                console.log(`[Sweetlink] No matching server found for port ${this.currentAppPort}. Will retry...`);
+                console.log(
+                  `[Sweetlink] No matching server found for port ${this.currentAppPort}. Will retry...`
+                );
                 setTimeout(() => this.connectWebSocket(this.basePort), PORT_SEARCH_FAIL_RETRY_MS);
               }
               return;
@@ -346,7 +338,9 @@ export class SweetlinkBridge {
             this.verified = true;
             this.serverInfo = info;
             this.connected = true;
-            console.log(`[Sweetlink] Verified connection to server for port ${info.appPort ?? 'any'} (project: ${info.projectDir})`);
+            console.log(
+              `[Sweetlink] Verified connection to server for port ${info.appPort ?? 'any'} (project: ${info.projectDir})`
+            );
             return;
           }
         }
@@ -361,16 +355,17 @@ export class SweetlinkBridge {
 
         const response = await this.handleCommand(command);
         ws.send(JSON.stringify(response));
-
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : 'Unknown error';
         console.error('[Sweetlink] Error handling command:', errorMessage);
 
-        ws.send(JSON.stringify({
-          success: false,
-          error: errorMessage,
-          timestamp: Date.now()
-        } as SweetlinkResponse));
+        ws.send(
+          JSON.stringify({
+            success: false,
+            error: errorMessage,
+            timestamp: Date.now(),
+          } as SweetlinkResponse)
+        );
       }
     };
 
@@ -425,7 +420,7 @@ export class SweetlinkBridge {
         return {
           success: false,
           error: `Unknown command: ${command.type}`,
-          timestamp: Date.now()
+          timestamp: Date.now(),
         };
     }
   }

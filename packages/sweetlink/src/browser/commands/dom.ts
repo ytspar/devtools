@@ -15,7 +15,7 @@ export function handleQueryDOM(command: SweetlinkCommand): SweetlinkResponse {
       return {
         success: false,
         error: 'Selector is required',
-        timestamp: Date.now()
+        timestamp: Date.now(),
       };
     }
 
@@ -27,9 +27,9 @@ export function handleQueryDOM(command: SweetlinkCommand): SweetlinkResponse {
         data: {
           found: false,
           count: 0,
-          elements: []
+          elements: [],
         },
-        timestamp: Date.now()
+        timestamp: Date.now(),
       };
     }
 
@@ -39,7 +39,7 @@ export function handleQueryDOM(command: SweetlinkCommand): SweetlinkResponse {
         tagName: el.tagName.toLowerCase(),
         id: el.id || null,
         className: el.className || null,
-        textContent: el.textContent?.slice(0, 200) || null
+        textContent: el.textContent?.slice(0, 200) || null,
       };
 
       if (command.property) {
@@ -50,13 +50,13 @@ export function handleQueryDOM(command: SweetlinkCommand): SweetlinkResponse {
             display: style.display,
             visibility: style.visibility,
             opacity: style.opacity,
-            position: style.position
+            position: style.position,
           };
         } else if (prop === 'boundingRect') {
           result.boundingRect = el.getBoundingClientRect();
         } else if (prop === 'attributes') {
           result.attributes = Object.fromEntries(
-            Array.from(el.attributes).map(attr => [attr.name, attr.value])
+            Array.from(el.attributes).map((attr) => [attr.name, attr.value])
           );
         } else {
           result[prop] = (el as unknown as Record<string, unknown>)[prop];
@@ -71,16 +71,15 @@ export function handleQueryDOM(command: SweetlinkCommand): SweetlinkResponse {
       data: {
         found: true,
         count: elements.length,
-        elements: results
+        elements: results,
       },
-      timestamp: Date.now()
+      timestamp: Date.now(),
     };
-
   } catch (error) {
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Query failed',
-      timestamp: Date.now()
+      timestamp: Date.now(),
     };
   }
 }

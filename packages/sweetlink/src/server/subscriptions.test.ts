@@ -1,13 +1,13 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { WebSocket } from 'ws';
 import {
-  logSubscriptions,
   channelSubscriptions,
-  pendingScreenshotRequests,
   cleanupClientSubscriptions,
-  type InternalLogSubscription,
   type InternalChannelSubscription,
+  type InternalLogSubscription,
+  logSubscriptions,
   type PendingScreenshotRequest,
+  pendingScreenshotRequests,
 } from './subscriptions.js';
 
 // Create mock WebSocket
@@ -103,14 +103,18 @@ describe('cleanupClientSubscriptions', () => {
   it('removes client from multiple channels', () => {
     const ws = createMockWs();
 
-    channelSubscriptions.set('channel1', [{
-      clientWs: ws,
-      channel: 'channel1',
-    }]);
-    channelSubscriptions.set('channel2', [{
-      clientWs: ws,
-      channel: 'channel2',
-    }]);
+    channelSubscriptions.set('channel1', [
+      {
+        clientWs: ws,
+        channel: 'channel1',
+      },
+    ]);
+    channelSubscriptions.set('channel2', [
+      {
+        clientWs: ws,
+        channel: 'channel2',
+      },
+    ]);
 
     cleanupClientSubscriptions(ws);
 

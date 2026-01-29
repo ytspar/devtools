@@ -14,7 +14,7 @@ export { formatArg, formatArgs } from '@ytspar/sweetlink/browser/consoleCapture'
 // Re-export screenshot utilities from sweetlink's browser module
 export {
   canvasToDataUrl,
-  prepareForCapture,
-  delay,
   copyCanvasToClipboard,
+  delay,
+  prepareForCapture,
 } from '@ytspar/sweetlink/browser/screenshotUtils';

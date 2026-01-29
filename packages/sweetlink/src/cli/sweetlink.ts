@@ -7,12 +7,12 @@
  * Allows taking screenshots, querying DOM, getting console logs, and executing JavaScript.
  */
 
-import { WebSocket } from 'ws';
 import * as fs from 'fs';
 import * as path from 'path';
+import { WebSocket } from 'ws';
 import { detectCDP, getNetworkRequestsViaCDP } from '../cdp.js';
 import { screenshotViaPlaywright } from '../playwright.js';
-import { measureViaPlaywright, getCardHeaderPreset, getNavigationPreset } from '../ruler.js';
+import { getCardHeaderPreset, getNavigationPreset, measureViaPlaywright } from '../ruler.js';
 
 /** Default screenshot output directory (relative to project root) */
 const DEFAULT_SCREENSHOT_DIR = '.tmp/sweetlink-screenshots';
@@ -137,7 +137,10 @@ const SERVER_POLL_INTERVAL = 500; // Poll every 500ms
  * @param timeout Maximum time to wait in ms
  * @returns true if server is ready, throws if timeout
  */
-async function waitForServer(url: string, timeout: number = SERVER_READY_TIMEOUT): Promise<boolean> {
+async function waitForServer(
+  url: string,
+  timeout: number = SERVER_READY_TIMEOUT
+): Promise<boolean> {
   const startTime = Date.now();
   let lastError: Error | null = null;
 
@@ -154,7 +157,7 @@ async function waitForServer(url: string, timeout: number = SERVER_READY_TIMEOUT
 
       const response = await fetch(healthCheckUrl, {
         method: 'HEAD',
-        signal: controller.signal
+        signal: controller.signal,
       });
 
       clearTimeout(timeoutId);
@@ -168,10 +171,12 @@ async function waitForServer(url: string, timeout: number = SERVER_READY_TIMEOUT
       // Server not ready yet, wait and retry
     }
 
-    await new Promise(resolve => setTimeout(resolve, SERVER_POLL_INTERVAL));
+    await new Promise((resolve) => setTimeout(resolve, SERVER_POLL_INTERVAL));
   }
 
-  throw new Error(`Server not ready after ${timeout}ms: ${lastError?.message || 'Connection refused'}`);
+  throw new Error(
+    `Server not ready after ${timeout}ms: ${lastError?.message || 'Connection refused'}`
+  );
 }
 
 async function sendCommand(command: SweetlinkCommand): Promise<SweetlinkResponse> {
@@ -231,8 +236,13 @@ async function screenshot(options: {
     try {
       await waitForServer(targetUrl, options.waitTimeout || SERVER_READY_TIMEOUT);
     } catch (error) {
-      console.error('[Sweetlink] Server not available:', error instanceof Error ? error.message : error);
-      console.error('[Sweetlink] Hint: Start your dev server with "pnpm run dev" or use --no-wait to skip');
+      console.error(
+        '[Sweetlink] Server not available:',
+        error instanceof Error ? error.message : error
+      );
+      console.error(
+        '[Sweetlink] Hint: Start your dev server with "pnpm run dev" or use --no-wait to skip'
+      );
       process.exit(1);
     }
   }
@@ -240,8 +250,10 @@ async function screenshot(options: {
   console.log('[Sweetlink] Taking screenshot...');
 
   // Warn if using /tmp/ instead of .tmp/ (project-relative path is preferred)
-  if (options.output && options.output.startsWith('/tmp/')) {
-    console.warn('[Sweetlink] ⚠️  Warning: Using /tmp/ for output. Consider using .tmp/screenshots/ instead for project-relative paths.');
+  if (options.output?.startsWith('/tmp/')) {
+    console.warn(
+      '[Sweetlink] ⚠️  Warning: Using /tmp/ for output. Consider using .tmp/screenshots/ instead for project-relative paths.'
+    );
     console.warn('[Sweetlink]    Example: --output .tmp/screenshots/my-screenshot.png');
   }
 
@@ -251,7 +263,7 @@ async function screenshot(options: {
 
   // If we need CDP/Playwright (for hover or force-cdp), or if CDP is available, use Playwright
   // Playwright will auto-launch if CDP is not available
-  const shouldTryPlaywright = requiresCDP || (!options.forceWS && await detectCDP());
+  const shouldTryPlaywright = requiresCDP || (!options.forceWS && (await detectCDP()));
 
   if (shouldTryPlaywright) {
     console.log('[Sweetlink] Using Playwright for screenshot');
@@ -268,7 +280,7 @@ async function screenshot(options: {
         fullPage: options.fullPage,
         viewport: options.viewport,
         hover: options.hover,
-        url: options.url
+        url: options.url,
       });
 
       console.log(`[Sweetlink] ✓ Screenshot saved to: ${getRelativePath(outputPath)}`);
@@ -279,10 +291,12 @@ async function screenshot(options: {
       console.log(`[Sweetlink] Method: Playwright (Auto-launch/CDP)`);
 
       return;
-
     } catch (error) {
       if (options.forceCDP) {
-        console.error('[Sweetlink] CDP screenshot failed:', error instanceof Error ? error.message : error);
+        console.error(
+          '[Sweetlink] CDP screenshot failed:',
+          error instanceof Error ? error.message : error
+        );
         process.exit(1);
       }
 
@@ -299,8 +313,8 @@ async function screenshot(options: {
     selector: options.selector,
     options: {
       fullPage: options.fullPage,
-      a11y: options.a11y
-    }
+      a11y: options.a11y,
+    },
   };
 
   try {
@@ -322,7 +336,7 @@ async function screenshot(options: {
             fullPage: options.fullPage,
             viewport: options.viewport,
             hover: options.hover,
-            url: options.url
+            url: options.url,
           });
 
           console.log(`[Sweetlink] ✓ Screenshot saved to: ${getRelativePath(outputPath)}`);
@@ -333,7 +347,10 @@ async function screenshot(options: {
           console.log(`[Sweetlink] Method: Playwright (auto-escalation from WebSocket failure)`);
           return;
         } catch (playwrightError) {
-          console.error('[Sweetlink] Playwright fallback also failed:', playwrightError instanceof Error ? playwrightError.message : playwrightError);
+          console.error(
+            '[Sweetlink] Playwright fallback also failed:',
+            playwrightError instanceof Error ? playwrightError.message : playwrightError
+          );
           process.exit(1);
         }
       }
@@ -354,23 +371,19 @@ async function screenshot(options: {
       console.log(`[Sweetlink] Selector: ${response.data.selector}`);
     }
     console.log(`[Sweetlink] Method: WebSocket (html2canvas)`);
-
   } catch (error) {
     console.error('[Sweetlink] Error:', error instanceof Error ? error.message : error);
     process.exit(1);
   }
 }
 
-async function queryDOM(options: {
-  selector: string;
-  property?: string;
-}) {
+async function queryDOM(options: { selector: string; property?: string }) {
   console.log(`[Sweetlink] Querying DOM: ${options.selector}`);
 
   const command: SweetlinkCommand = {
     type: 'query-dom',
     selector: options.selector,
-    property: options.property
+    property: options.property,
   };
 
   try {
@@ -394,7 +407,6 @@ async function queryDOM(options: {
       console.log('\nElements:');
       console.log(JSON.stringify(response.data.results, null, 2));
     }
-
   } catch (error) {
     console.error('[Sweetlink] Error:', error instanceof Error ? error.message : error);
     process.exit(1);
@@ -433,7 +445,7 @@ function deduplicateLogs(logs: LogEntry[]): DedupedLog[] {
         message: log.message,
         count: 1,
         firstSeen: log.timestamp,
-        lastSeen: log.timestamp
+        lastSeen: log.timestamp,
       });
     }
   }
@@ -459,7 +471,7 @@ async function getLogs(options: {
 
   const command: SweetlinkCommand = {
     type: 'get-logs',
-    filter: options.filter
+    filter: options.filter,
   };
 
   try {
@@ -488,16 +500,16 @@ async function getLogs(options: {
         total: logs.length,
         unique: deduped.length,
         byLevel: {
-          error: deduped.filter(l => l.level === 'error').length,
-          warn: deduped.filter(l => l.level === 'warn').length,
-          info: deduped.filter(l => l.level === 'info').length,
-          log: deduped.filter(l => l.level === 'log').length,
+          error: deduped.filter((l) => l.level === 'error').length,
+          warn: deduped.filter((l) => l.level === 'warn').length,
+          info: deduped.filter((l) => l.level === 'info').length,
+          log: deduped.filter((l) => l.level === 'log').length,
         },
-        entries: deduped.map(l => ({
+        entries: deduped.map((l) => ({
           level: l.level,
           count: l.count,
-          message: l.message.length > 500 ? l.message.substring(0, 500) + '...' : l.message
-        }))
+          message: l.message.length > 500 ? `${l.message.substring(0, 500)}...` : l.message,
+        })),
       };
       console.log(JSON.stringify(summary, null, 2));
       return;
@@ -506,58 +518,63 @@ async function getLogs(options: {
     // Default text format
     const displayLogs = options.dedupe ? deduplicateLogs(logs) : null;
 
-    console.log(`[Sweetlink] ✓ Found ${logs.length} log entries${options.dedupe ? ` (${displayLogs!.length} unique)` : ''}`);
+    console.log(
+      `[Sweetlink] ✓ Found ${logs.length} log entries${options.dedupe ? ` (${displayLogs!.length} unique)` : ''}`
+    );
 
     if (logs.length > 0) {
       console.log('\nConsole Logs:');
 
       if (options.dedupe && displayLogs) {
         displayLogs.forEach((log) => {
-          const levelColor = {
-            error: '\x1b[31m',
-            warn: '\x1b[33m',
-            info: '\x1b[36m',
-            log: '\x1b[37m'
-          }[log.level] || '\x1b[37m';
+          const levelColor =
+            {
+              error: '\x1b[31m',
+              warn: '\x1b[33m',
+              info: '\x1b[36m',
+              log: '\x1b[37m',
+            }[log.level] || '\x1b[37m';
 
           const reset = '\x1b[0m';
           const countStr = log.count > 1 ? ` (×${log.count})` : '';
 
-          console.log(`  ${levelColor}[${log.level.toUpperCase()}]${reset}${countStr} - ${log.message}`);
+          console.log(
+            `  ${levelColor}[${log.level.toUpperCase()}]${reset}${countStr} - ${log.message}`
+          );
         });
       } else {
         logs.forEach((log) => {
-          const levelColor = {
-            error: '\x1b[31m',
-            warn: '\x1b[33m',
-            info: '\x1b[36m',
-            log: '\x1b[37m'
-          }[log.level] || '\x1b[37m';
+          const levelColor =
+            {
+              error: '\x1b[31m',
+              warn: '\x1b[33m',
+              info: '\x1b[36m',
+              log: '\x1b[37m',
+            }[log.level] || '\x1b[37m';
 
           const reset = '\x1b[0m';
           const time = new Date(log.timestamp).toLocaleTimeString();
 
-          console.log(`  ${levelColor}[${log.level.toUpperCase()}]${reset} ${time} - ${log.message}`);
+          console.log(
+            `  ${levelColor}[${log.level.toUpperCase()}]${reset} ${time} - ${log.message}`
+          );
         });
       }
     } else {
       console.log('  No logs found');
     }
-
   } catch (error) {
     console.error('[Sweetlink] Error:', error instanceof Error ? error.message : error);
     process.exit(1);
   }
 }
 
-async function execJS(options: {
-  code: string;
-}) {
+async function execJS(options: { code: string }) {
   console.log('[Sweetlink] Executing JavaScript...');
 
   const command: SweetlinkCommand = {
     type: 'exec-js',
-    code: options.code
+    code: options.code,
   };
 
   try {
@@ -570,18 +587,13 @@ async function execJS(options: {
 
     console.log('[Sweetlink] ✓ Result:');
     console.log(JSON.stringify(response.data, null, 2));
-
   } catch (error) {
     console.error('[Sweetlink] Error:', error instanceof Error ? error.message : error);
     process.exit(1);
   }
 }
 
-async function click(options: {
-  selector?: string;
-  text?: string;
-  index?: number;
-}) {
+async function click(options: { selector?: string; text?: string; index?: number }) {
   const { selector, text, index = 0 } = options;
 
   if (!selector && !text) {
@@ -598,9 +610,7 @@ async function click(options: {
     // Escape for JSON to safely embed in JavaScript
     const escapedText = JSON.stringify(text);
     const escapedSelector = JSON.stringify(baseSelector);
-    description = selector
-      ? `"${text}" within ${selector}`
-      : `"${text}"`;
+    description = selector ? `"${text}" within ${selector}` : `"${text}"`;
     clickCode = `
       (() => {
         const searchText = ${escapedText};
@@ -646,7 +656,7 @@ async function click(options: {
 
   const command: SweetlinkCommand = {
     type: 'exec-js',
-    code: clickCode.trim()
+    code: clickCode.trim(),
   };
 
   try {
@@ -669,28 +679,27 @@ async function click(options: {
         console.error(`[Sweetlink] ✗ ${result.error}`);
         process.exit(1);
       }
-      console.log(`[Sweetlink] ✓ Clicked: ${result.clicked}${result.found > 1 ? ` (${result.found} matches, used index ${index})` : ''}`);
+      console.log(
+        `[Sweetlink] ✓ Clicked: ${result.clicked}${result.found > 1 ? ` (${result.found} matches, used index ${index})` : ''}`
+      );
     } else {
       // Result is just a value, not our expected object
       console.log(`[Sweetlink] ✓ Click executed`);
     }
-
   } catch (error) {
     console.error('[Sweetlink] Error:', error instanceof Error ? error.message : error);
     process.exit(1);
   }
 }
 
-async function refresh(options: {
-  hard?: boolean;
-}) {
+async function refresh(options: { hard?: boolean }) {
   console.log('[Sweetlink] Refreshing page...');
 
   const command: SweetlinkCommand = {
     type: 'refresh',
     options: {
-      hard: options.hard
-    }
+      hard: options.hard,
+    },
   };
 
   try {
@@ -702,7 +711,6 @@ async function refresh(options: {
     }
 
     console.log(`[Sweetlink] ✓ Page refreshed${options.hard ? ' (hard reload)' : ''}`);
-
   } catch (error) {
     console.error('[Sweetlink] Error:', error instanceof Error ? error.message : error);
     process.exit(1);
@@ -750,7 +758,7 @@ async function ruler(options: {
       showDimensions: options.showDimensions ?? true,
       showPosition: options.showPosition ?? false,
       showAlignment: options.showAlignment ?? true,
-      limit: options.limit ?? 5
+      limit: options.limit ?? 5,
     });
 
     if (options.format === 'json') {
@@ -768,7 +776,9 @@ async function ruler(options: {
       result.results.forEach((r, i) => {
         console.log(`\n  [${i + 1}] ${r.selector}:`);
         r.elements.forEach((el) => {
-          console.log(`      Element ${el.index}: ${Math.round(el.rect.width)}×${Math.round(el.rect.height)} @ (${Math.round(el.rect.left)}, ${Math.round(el.rect.top)})`);
+          console.log(
+            `      Element ${el.index}: ${Math.round(el.rect.width)}×${Math.round(el.rect.height)} @ (${Math.round(el.rect.left)}, ${Math.round(el.rect.top)})`
+          );
           console.log(`        Center: (${Math.round(el.centerX)}, ${Math.round(el.centerY)})`);
         });
       });
@@ -777,24 +787,25 @@ async function ruler(options: {
         console.log(`\n[Sweetlink Ruler] ✓ Screenshot with overlay: ${result.screenshotPath}`);
       }
     }
-
   } catch (error) {
     console.error('[Sweetlink] Error:', error instanceof Error ? error.message : error);
     process.exit(1);
   }
 }
 
-async function getNetwork(options: {
-  filter?: string;
-}) {
+async function getNetwork(options: { filter?: string }) {
   console.log('[Sweetlink] Getting network requests (requires CDP)...');
 
   // Check if CDP is available
   const hasCDP = await detectCDP();
 
   if (!hasCDP) {
-    console.error('[Sweetlink] CDP not available. Network inspection requires Chrome DevTools Protocol.');
-    console.error('[Sweetlink] Start Chrome with: /Applications/Google\\ Chrome.app/Contents/MacOS/Google\\ Chrome --remote-debugging-port=9222');
+    console.error(
+      '[Sweetlink] CDP not available. Network inspection requires Chrome DevTools Protocol.'
+    );
+    console.error(
+      '[Sweetlink] Start Chrome with: /Applications/Google\\ Chrome.app/Contents/MacOS/Google\\ Chrome --remote-debugging-port=9222'
+    );
     process.exit(1);
   }
 
@@ -807,7 +818,11 @@ async function getNetwork(options: {
       console.log('\nNetwork Requests:');
       requests.forEach((req, index) => {
         const statusColor = req.status
-          ? (req.status >= 200 && req.status < 300 ? '\x1b[32m' : req.status >= 400 ? '\x1b[31m' : '\x1b[33m')
+          ? req.status >= 200 && req.status < 300
+            ? '\x1b[32m'
+            : req.status >= 400
+              ? '\x1b[31m'
+              : '\x1b[33m'
           : '\x1b[37m';
 
         const reset = '\x1b[0m';
@@ -823,7 +838,6 @@ async function getNetwork(options: {
     } else {
       console.log('  No requests found');
     }
-
   } catch (error) {
     console.error('[Sweetlink] Error:', error instanceof Error ? error.message : error);
     process.exit(1);
@@ -1056,11 +1070,13 @@ function hasFlag(flag: string): boolean {
           hover: hasFlag('--hover'),
           url: getArg('--url'),
           wait: !hasFlag('--no-wait'), // Wait by default, --no-wait to skip
-          waitTimeout: getArg('--wait-timeout') ? parseInt(getArg('--wait-timeout')!, 10) : undefined
+          waitTimeout: getArg('--wait-timeout')
+            ? parseInt(getArg('--wait-timeout')!, 10)
+            : undefined,
         });
         break;
 
-      case 'query':
+      case 'query': {
         const selector = getArg('--selector');
         if (!selector) {
           console.error('[Sweetlink] Error: --selector is required for query command');
@@ -1068,20 +1084,22 @@ function hasFlag(flag: string): boolean {
         }
         await queryDOM({
           selector,
-          property: getArg('--property')
+          property: getArg('--property'),
         });
         break;
+      }
 
-      case 'logs':
+      case 'logs': {
         const format = getArg('--format') as 'text' | 'json' | 'summary' | undefined;
         await getLogs({
           filter: getArg('--filter'),
           format: format || 'text',
-          dedupe: hasFlag('--dedupe')
+          dedupe: hasFlag('--dedupe'),
         });
         break;
+      }
 
-      case 'exec':
+      case 'exec': {
         const code = getArg('--code');
         if (!code) {
           console.error('[Sweetlink] Error: --code is required for exec command');
@@ -1089,29 +1107,30 @@ function hasFlag(flag: string): boolean {
         }
         await execJS({ code });
         break;
+      }
 
       case 'click':
         await click({
           selector: getArg('--selector'),
           text: getArg('--text'),
-          index: getArg('--index') ? parseInt(getArg('--index')!, 10) : undefined
+          index: getArg('--index') ? parseInt(getArg('--index')!, 10) : undefined,
         });
         break;
 
       case 'network':
         await getNetwork({
-          filter: getArg('--filter')
+          filter: getArg('--filter'),
         });
         break;
 
       case 'refresh':
         await refresh({
-          hard: hasFlag('--hard')
+          hard: hasFlag('--hard'),
         });
         break;
 
       case 'ruler':
-      case 'measure':
+      case 'measure': {
         // Collect all --selector arguments
         const rulerSelectors: string[] = [];
         args.forEach((arg, i) => {
@@ -1130,24 +1149,31 @@ function hasFlag(flag: string): boolean {
           showPosition: hasFlag('--show-position'),
           showAlignment: !hasFlag('--no-alignment'),
           limit: getArg('--limit') ? parseInt(getArg('--limit')!, 10) : undefined,
-          format: getArg('--format') as 'text' | 'json' | undefined
+          format: getArg('--format') as 'text' | 'json' | undefined,
         });
         break;
+      }
 
-      case 'wait':
+      case 'wait': {
         // Standalone wait command for waiting for server to be ready
         const waitUrl = getArg('--url') || 'http://localhost:3000';
-        const waitTimeout = getArg('--timeout') ? parseInt(getArg('--timeout')!, 10) : SERVER_READY_TIMEOUT;
+        const waitTimeout = getArg('--timeout')
+          ? parseInt(getArg('--timeout')!, 10)
+          : SERVER_READY_TIMEOUT;
         try {
           await waitForServer(waitUrl, waitTimeout);
           console.log('[Sweetlink] ✓ Server is ready');
         } catch (error) {
-          console.error('[Sweetlink] ✗ Server not available:', error instanceof Error ? error.message : error);
+          console.error(
+            '[Sweetlink] ✗ Server not available:',
+            error instanceof Error ? error.message : error
+          );
           process.exit(1);
         }
         break;
+      }
 
-      case 'status':
+      case 'status': {
         // Quick server status check (non-blocking)
         const statusUrl = getArg('--url') || 'http://localhost:3000';
         try {
@@ -1155,7 +1181,10 @@ function hasFlag(flag: string): boolean {
           const healthCheckUrl = `${parsedUrl.protocol}//${parsedUrl.host}`;
           const controller = new AbortController();
           const timeoutId = setTimeout(() => controller.abort(), 2000);
-          const response = await fetch(healthCheckUrl, { method: 'HEAD', signal: controller.signal });
+          const response = await fetch(healthCheckUrl, {
+            method: 'HEAD',
+            signal: controller.signal,
+          });
           clearTimeout(timeoutId);
           if (response.ok || response.status === 304) {
             console.log(`[Sweetlink] ✓ Server at ${healthCheckUrl} is running`);
@@ -1168,13 +1197,13 @@ function hasFlag(flag: string): boolean {
           process.exit(1);
         }
         break;
+      }
 
       default:
         console.error(`[Sweetlink] Unknown command: ${commandType}`);
         console.log('Run "pnpm sweetlink --help" for usage information');
         process.exit(1);
     }
-
   } catch (error) {
     console.error('[Sweetlink] Fatal error:', error);
     process.exit(1);

@@ -1,5 +1,5 @@
-import { describe, it, expect } from 'vitest';
-import { CLAUDE_MODEL, CLAUDE_MAX_TOKENS, CLAUDE_PRICING } from './anthropic.js';
+import { describe, expect, it } from 'vitest';
+import { CLAUDE_MAX_TOKENS, CLAUDE_MODEL, CLAUDE_PRICING } from './anthropic.js';
 
 describe('CLAUDE_MODEL', () => {
   it('is a valid Claude model ID', () => {

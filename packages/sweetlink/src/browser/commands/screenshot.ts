@@ -7,10 +7,10 @@
 import html2canvas from 'html2canvas-pro';
 import type { SweetlinkCommand, SweetlinkResponse } from '../../types.js';
 import {
-  scaleCanvas,
   canvasToDataUrl,
+  DEFAULT_SCREENSHOT_QUALITY,
   DEFAULT_SCREENSHOT_SCALE,
-  DEFAULT_SCREENSHOT_QUALITY
+  scaleCanvas,
 } from '../screenshotUtils.js';
 
 /**
@@ -18,15 +18,13 @@ import {
  */
 export async function handleScreenshot(command: SweetlinkCommand): Promise<SweetlinkResponse> {
   try {
-    const element = command.selector
-      ? document.querySelector(command.selector)
-      : document.body;
+    const element = command.selector ? document.querySelector(command.selector) : document.body;
 
     if (!element) {
       return {
         success: false,
         error: `Element not found: ${command.selector}`,
-        timestamp: Date.now()
+        timestamp: Date.now(),
       };
     }
 
@@ -34,7 +32,7 @@ export async function handleScreenshot(command: SweetlinkCommand): Promise<Sweet
       logging: false,
       useCORS: true,
       allowTaint: true,
-      ...command.options
+      ...command.options,
     });
 
     const dataUrl = canvas.toDataURL('image/png');
@@ -45,16 +43,15 @@ export async function handleScreenshot(command: SweetlinkCommand): Promise<Sweet
         screenshot: dataUrl,
         width: canvas.width,
         height: canvas.height,
-        selector: command.selector || 'body'
+        selector: command.selector || 'body',
       },
-      timestamp: Date.now()
+      timestamp: Date.now(),
     };
-
   } catch (error) {
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Screenshot failed',
-      timestamp: Date.now()
+      timestamp: Date.now(),
     };
   }
 }
@@ -68,9 +65,7 @@ export async function handleRequestScreenshot(
   ws: WebSocket | null
 ): Promise<SweetlinkResponse> {
   try {
-    const element = command.selector
-      ? document.querySelector(command.selector)
-      : document.body;
+    const element = command.selector ? document.querySelector(command.selector) : document.body;
 
     if (!element) {
       const errorResponse = {
@@ -78,7 +73,7 @@ export async function handleRequestScreenshot(
         requestId: command.requestId,
         success: false,
         error: `Element not found: ${command.selector}`,
-        timestamp: Date.now()
+        timestamp: Date.now(),
       };
       ws?.send(JSON.stringify(errorResponse));
       return errorResponse;
@@ -92,7 +87,7 @@ export async function handleRequestScreenshot(
       logging: false,
       useCORS: true,
       allowTaint: true,
-      ...command.options
+      ...command.options,
     });
 
     // Scale down using shared utility
@@ -103,7 +98,7 @@ export async function handleRequestScreenshot(
       screenshot: dataUrl,
       width: smallCanvas.width,
       height: smallCanvas.height,
-      selector: command.selector || 'body'
+      selector: command.selector || 'body',
     };
 
     if (command.includeMetadata !== false) {
@@ -111,7 +106,7 @@ export async function handleRequestScreenshot(
       responseData.timestamp = Date.now();
       responseData.viewport = {
         width: window.innerWidth,
-        height: window.innerHeight
+        height: window.innerHeight,
       };
     }
 
@@ -120,7 +115,7 @@ export async function handleRequestScreenshot(
       requestId: command.requestId,
       success: true,
       data: responseData,
-      timestamp: Date.now()
+      timestamp: Date.now(),
     };
 
     ws?.send(JSON.stringify(response));
@@ -128,9 +123,8 @@ export async function handleRequestScreenshot(
     return {
       success: true,
       data: responseData,
-      timestamp: Date.now()
+      timestamp: Date.now(),
     };
-
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Screenshot failed';
     const errorResponse = {
@@ -138,7 +132,7 @@ export async function handleRequestScreenshot(
       requestId: command.requestId,
       success: false,
       error: errorMessage,
-      timestamp: Date.now()
+      timestamp: Date.now(),
     };
     ws?.send(JSON.stringify(errorResponse));
     return errorResponse;

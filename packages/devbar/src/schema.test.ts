@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { extractPageSchema, schemaToMarkdown } from './schema.js';
 import type { PageSchema } from './types.js';
 
@@ -43,12 +43,9 @@ describe('extractPageSchema', () => {
   });
 
   it('extracts multiple JSON-LD scripts', () => {
-    const schemas = [
-      { '@type': 'WebPage' },
-      { '@type': 'BreadcrumbList' },
-    ];
+    const schemas = [{ '@type': 'WebPage' }, { '@type': 'BreadcrumbList' }];
 
-    schemas.forEach(s => {
+    schemas.forEach((s) => {
       const script = document.createElement('script');
       script.type = 'application/ld+json';
       script.textContent = JSON.stringify(s);

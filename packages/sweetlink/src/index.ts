@@ -4,103 +4,97 @@
  * Autonomous development toolkit for Claude AI agents
  */
 
-// Shared types
-export type {
-  ConsoleLog,
-  SweetlinkCommand,
-  SweetlinkResponse,
-  HmrScreenshotData,
-  ServerInfo,
-  OutlineNode,
-  PageSchema,
-  LogSubscription,
-  ChannelSubscription
-} from './types.js';
-
-// Server infrastructure
-export { initSweetlink, closeSweetlink, getSweetlinkPort, getAssociatedAppPort } from './server.js';
-export type { InitSweetlinkOptions } from './server.js';
-
+// Browser client component (vanilla JS - no React dependency)
+export { SweetlinkBridge, type SweetlinkBridgeConfig } from './browser/SweetlinkBridge.js';
 // CDP integration
 export {
   detectCDP,
-  getCDPBrowser,
-  findLocalDevPage,
-  screenshotViaCDP,
-  queryDOMViaCDP,
   execJSViaCDP,
-  getNetworkRequestsViaCDP,
+  findLocalDevPage,
+  getCDPBrowser,
   getConsoleLogsViaCDP,
+  getNetworkRequestsViaCDP,
   getPerformanceMetricsViaCDP,
-  testCDPConnection
+  queryDOMViaCDP,
+  screenshotViaCDP,
+  testCDPConnection,
 } from './cdp.js';
-
-// Browser client component (vanilla JS - no React dependency)
-export { SweetlinkBridge, type SweetlinkBridgeConfig } from './browser/SweetlinkBridge.js';
+export type { InitSweetlinkOptions } from './server.js';
+// Server infrastructure
+export { closeSweetlink, getAssociatedAppPort, getSweetlinkPort, initSweetlink } from './server.js';
+// Shared types
+export type {
+  ChannelSubscription,
+  ConsoleLog,
+  HmrScreenshotData,
+  LogSubscription,
+  OutlineNode,
+  PageSchema,
+  ServerInfo,
+  SweetlinkCommand,
+  SweetlinkResponse,
+} from './types.js';
 // React version available via: '@ytspar/sweetlink/browser/react'
 
 // Browser utilities (for use by devbar and other packages)
 export {
-  formatArg,
-  formatArgs,
   ConsoleCapture,
+  type ConsoleCaptureConfig,
+  type ConsoleCaptureState,
   createErrorHandler,
   createRejectionHandler,
+  formatArg,
+  formatArgs,
   MAX_CONSOLE_LOGS,
   type OriginalConsoleMethods,
-  type ConsoleCaptureState,
-  type ConsoleCaptureConfig
 } from './browser/consoleCapture.js';
 
 export {
-  scaleCanvas,
   canvasToDataUrl,
-  extractBase64FromDataUrl,
-  getMediaTypeFromDataUrl,
-  prepareForCapture,
-  delay,
   copyCanvasToClipboard,
-  gatherScreenshotMetadata,
-  DEFAULT_SCREENSHOT_SCALE,
   DEFAULT_SCREENSHOT_QUALITY,
+  DEFAULT_SCREENSHOT_SCALE,
   DESIGN_REVIEW_SCALE,
   DEVBAR_SCREENSHOT_QUALITY,
+  delay,
+  extractBase64FromDataUrl,
+  gatherScreenshotMetadata,
+  getMediaTypeFromDataUrl,
+  prepareForCapture,
   type ScaleCanvasOptions,
+  type ScreenshotMetadata,
+  scaleCanvas,
   type ToDataUrlOptions,
-  type ScreenshotMetadata
 } from './browser/screenshotUtils.js';
-
-// URL utilities
-export {
-  generateSlugFromUrl,
-  formatTimestampForFilename,
-  generateBaseFilename,
-  truncateMessage,
-  SCREENSHOT_DIR,
-  HMR_SCREENSHOT_DIR,
-  MAX_SLUG_LENGTH,
-  MAX_LOG_MESSAGE_LENGTH
-} from './urlUtils.js';
-
-// Viewport utilities (shared by CDP and Playwright)
-export {
-  parseViewport,
-  DEFAULT_VIEWPORT,
-  VIEWPORT_PRESETS,
-  type ViewportConfig
-} from './viewportUtils.js';
-
-// Pixel Ruler for visual measurement
-export {
-  measureViaPlaywright,
-  measureElementsScript,
-  removeRulerScript,
-  getCardHeaderPreset,
-  getNavigationPreset
-} from './ruler.js';
 export type {
+  ElementMeasurement,
   MeasurementOptions,
   MeasurementResult,
-  ElementMeasurement,
-  RulerOutput
+  RulerOutput,
 } from './ruler.js';
+// Pixel Ruler for visual measurement
+export {
+  getCardHeaderPreset,
+  getNavigationPreset,
+  measureElementsScript,
+  measureViaPlaywright,
+  removeRulerScript,
+} from './ruler.js';
+// URL utilities
+export {
+  formatTimestampForFilename,
+  generateBaseFilename,
+  generateSlugFromUrl,
+  HMR_SCREENSHOT_DIR,
+  MAX_LOG_MESSAGE_LENGTH,
+  MAX_SLUG_LENGTH,
+  SCREENSHOT_DIR,
+  truncateMessage,
+} from './urlUtils.js';
+// Viewport utilities (shared by CDP and Playwright)
+export {
+  DEFAULT_VIEWPORT,
+  parseViewport,
+  VIEWPORT_PRESETS,
+  type ViewportConfig,
+} from './viewportUtils.js';

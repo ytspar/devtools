@@ -19,7 +19,6 @@ import {
   DEVBAR_SCREENSHOT_QUALITY,
   FONT_MONO,
   getEffectiveTheme,
-  getStoredThemeMode,
   getThemeColors,
   MAX_CONSOLE_LOGS,
   MAX_RECONNECT_ATTEMPTS,
@@ -27,8 +26,6 @@ import {
   SCREENSHOT_BLUR_DELAY_MS,
   SCREENSHOT_NOTIFICATION_MS,
   SCREENSHOT_SCALE,
-  setStoredThemeMode,
-  STORAGE_KEYS,
   TAILWIND_BREAKPOINTS,
   TOOLTIP_STYLES,
   WS_PORT,
@@ -36,6 +33,13 @@ import {
 import { DebugLogger, normalizeDebugConfig } from './debug.js';
 import { extractDocumentOutline, outlineToMarkdown } from './outline.js';
 import { extractPageSchema, schemaToMarkdown } from './schema.js';
+import {
+  ACCENT_COLOR_PRESETS,
+  DEFAULT_SETTINGS,
+  getSettingsManager,
+  type DevBarSettings,
+  type SettingsManager,
+} from './settings.js';
 // Import from split modules
 import type {
   ConsoleLog,
@@ -77,6 +81,10 @@ export type {
   DevBarControl,
   ThemeMode,
 };
+
+// Re-export settings types
+export type { DevBarSettings, DevBarPosition, MetricsVisibility } from './settings.js';
+export { DEFAULT_SETTINGS, ACCENT_COLOR_PRESETS, getSettingsManager } from './settings.js';
 
 // Handle ESM/CJS interop for html2canvas-pro
 type Html2CanvasFunc = (
@@ -248,10 +256,16 @@ export class GlobalDevBar {
   // Overlay element for modals
   private overlayElement: HTMLDivElement | null = null;
 
+  // Settings manager for persistence
+  private settingsManager: SettingsManager;
+
   constructor(options: GlobalDevBarOptions = {}) {
     // Initialize debug config first so we can log during construction
     this.debugConfig = normalizeDebugConfig(options.debug);
     this.debug = new DebugLogger(this.debugConfig);
+
+    // Initialize settings manager
+    this.settingsManager = getSettingsManager();
 
     this.options = {
       position: options.position ?? 'bottom-left',
@@ -496,7 +510,16 @@ export class GlobalDevBar {
       this.sweetlinkConnected = true;
       this.reconnectAttempts = 0;
       this.debug.ws('WebSocket connected');
+
+      // Update settings manager with WebSocket connection
+      this.settingsManager.setWebSocket(ws);
+      this.settingsManager.setConnected(true);
+
       ws.send(JSON.stringify({ type: 'browser-client-ready' }));
+
+      // Request settings from server
+      ws.send(JSON.stringify({ type: 'load-settings' }));
+
       this.render();
     };
 
@@ -512,6 +535,7 @@ export class GlobalDevBar {
 
     ws.onclose = () => {
       this.sweetlinkConnected = false;
+      this.settingsManager.setConnected(false);
       this.debug.ws('WebSocket disconnected');
       this.render();
 
@@ -663,7 +687,54 @@ export class GlobalDevBar {
       case 'schema-error':
         console.error('[GlobalDevBar] Schema save failed:', command.error);
         break;
+      case 'settings-loaded':
+        this.handleSettingsLoaded(command.settings as DevBarSettings | null);
+        break;
+      case 'settings-saved':
+        this.debug.state('Settings saved to server', { path: command.settingsPath });
+        break;
+      case 'settings-error':
+        console.error('[GlobalDevBar] Settings operation failed:', command.error);
+        break;
     }
+  }
+
+  /**
+   * Handle settings loaded from server
+   */
+  private handleSettingsLoaded(settings: DevBarSettings | null): void {
+    if (!settings) {
+      this.debug.state('No server settings found, using local');
+      return;
+    }
+
+    this.debug.state('Settings loaded from server', settings);
+
+    // Update settings manager
+    this.settingsManager.handleSettingsLoaded(settings);
+
+    // Apply settings to local state
+    this.applySettings(settings);
+  }
+
+  /**
+   * Apply settings to the DevBar state and options
+   */
+  private applySettings(settings: DevBarSettings): void {
+    // Update local state
+    this.themeMode = settings.themeMode;
+    this.compactMode = settings.compactMode;
+
+    // Update options
+    this.options.position = settings.position;
+    this.options.accentColor = settings.accentColor;
+    this.options.showScreenshot = settings.showScreenshot;
+    this.options.showConsoleBadges = settings.showConsoleBadges;
+    this.options.showTooltips = settings.showTooltips;
+    this.options.showMetrics = { ...settings.showMetrics };
+
+    // Re-render with new settings
+    this.render();
   }
 
   /**
@@ -910,8 +981,9 @@ export class GlobalDevBar {
   }
 
   private setupTheme(): void {
-    // Load stored theme preference
-    this.themeMode = getStoredThemeMode();
+    // Load stored theme preference from settings manager
+    const settings = this.settingsManager.getSettings();
+    this.themeMode = settings.themeMode;
     this.debug.state('Theme loaded', { mode: this.themeMode });
 
     // Listen for system theme changes
@@ -930,9 +1002,8 @@ export class GlobalDevBar {
   }
 
   private loadCompactMode(): void {
-    if (typeof localStorage === 'undefined') return;
-    const stored = localStorage.getItem(STORAGE_KEYS.compactMode);
-    this.compactMode = stored === 'true';
+    const settings = this.settingsManager.getSettings();
+    this.compactMode = settings.compactMode;
     this.debug.state('Compact mode loaded', { compactMode: this.compactMode });
   }
 
@@ -948,7 +1019,7 @@ export class GlobalDevBar {
    */
   setThemeMode(mode: ThemeMode): void {
     this.themeMode = mode;
-    setStoredThemeMode(mode);
+    this.settingsManager.saveSettings({ themeMode: mode });
     this.debug.state('Theme mode changed', { mode, effectiveTheme: getEffectiveTheme(mode) });
     this.render();
   }
@@ -965,9 +1036,7 @@ export class GlobalDevBar {
    */
   toggleCompactMode(): void {
     this.compactMode = !this.compactMode;
-    if (typeof localStorage !== 'undefined') {
-      localStorage.setItem(STORAGE_KEYS.compactMode, String(this.compactMode));
-    }
+    this.settingsManager.saveSettings({ compactMode: this.compactMode });
     this.debug.state('Compact mode toggled', { compactMode: this.compactMode });
     this.render();
   }
@@ -2198,6 +2267,86 @@ export class GlobalDevBar {
   }
 
   /**
+   * Create a settings section with title
+   */
+  private createSettingsSection(title: string, hasBorder = true): HTMLDivElement {
+    const color = COLORS.textSecondary;
+    const section = document.createElement('div');
+    Object.assign(section.style, {
+      padding: '10px 14px',
+      borderBottom: hasBorder ? `1px solid ${color}20` : 'none',
+    });
+
+    const sectionTitle = document.createElement('div');
+    Object.assign(sectionTitle.style, {
+      color,
+      fontSize: '0.625rem',
+      textTransform: 'uppercase',
+      letterSpacing: '0.1em',
+      marginBottom: '8px',
+    });
+    sectionTitle.textContent = title;
+    section.appendChild(sectionTitle);
+
+    return section;
+  }
+
+  /**
+   * Create a toggle switch row
+   */
+  private createToggleRow(
+    label: string,
+    checked: boolean,
+    accentColor: string,
+    onChange: () => void
+  ): HTMLDivElement {
+    const color = COLORS.textSecondary;
+    const row = document.createElement('div');
+    Object.assign(row.style, {
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      marginBottom: '6px',
+    });
+
+    const labelEl = document.createElement('span');
+    Object.assign(labelEl.style, { color: COLORS.text, fontSize: '0.6875rem' });
+    labelEl.textContent = label;
+    row.appendChild(labelEl);
+
+    const toggle = document.createElement('button');
+    Object.assign(toggle.style, {
+      width: '32px',
+      height: '18px',
+      borderRadius: '9px',
+      border: 'none',
+      backgroundColor: checked ? accentColor : `${color}40`,
+      position: 'relative',
+      cursor: 'pointer',
+      transition: 'all 150ms',
+      flexShrink: '0',
+    });
+
+    const knob = document.createElement('span');
+    Object.assign(knob.style, {
+      position: 'absolute',
+      top: '2px',
+      left: checked ? '16px' : '2px',
+      width: '14px',
+      height: '14px',
+      borderRadius: '50%',
+      backgroundColor: '#fff',
+      transition: 'left 150ms',
+    });
+    toggle.appendChild(knob);
+
+    toggle.onclick = onChange;
+    row.appendChild(toggle);
+
+    return row;
+  }
+
+  /**
    * Render the settings popover
    */
   private renderSettingsPopover(): void {
@@ -2222,7 +2371,10 @@ export class GlobalDevBar {
       boxShadow: `0 8px 32px rgba(0, 0, 0, 0.5), 0 0 0 1px ${accentColor}33`,
       backdropFilter: 'blur(8px)',
       WebkitBackdropFilter: 'blur(8px)',
-      minWidth: '200px',
+      minWidth: '240px',
+      maxWidth: '280px',
+      maxHeight: 'calc(100vh - 100px)',
+      overflowY: 'auto',
       fontFamily: FONT_MONO,
     });
 
@@ -2234,6 +2386,10 @@ export class GlobalDevBar {
       justifyContent: 'space-between',
       padding: '10px 14px',
       borderBottom: `1px solid ${accentColor}30`,
+      position: 'sticky',
+      top: '0',
+      backgroundColor: 'rgba(17, 24, 39, 0.98)',
+      zIndex: '1',
     });
 
     const title = document.createElement('span');
@@ -2255,20 +2411,8 @@ export class GlobalDevBar {
     header.appendChild(closeBtn);
     popover.appendChild(header);
 
-    // Theme section
-    const themeSection = document.createElement('div');
-    Object.assign(themeSection.style, { padding: '10px 14px', borderBottom: `1px solid ${color}20` });
-
-    const themeSectionTitle = document.createElement('div');
-    Object.assign(themeSectionTitle.style, {
-      color,
-      fontSize: '0.625rem',
-      textTransform: 'uppercase',
-      letterSpacing: '0.1em',
-      marginBottom: '8px',
-    });
-    themeSectionTitle.textContent = 'Theme';
-    themeSection.appendChild(themeSectionTitle);
+    // ========== THEME SECTION ==========
+    const themeSection = this.createSettingsSection('Theme');
 
     const themeOptions = document.createElement('div');
     Object.assign(themeOptions.style, { display: 'flex', gap: '6px' });
@@ -2297,81 +2441,222 @@ export class GlobalDevBar {
     themeSection.appendChild(themeOptions);
     popover.appendChild(themeSection);
 
-    // Display section
-    const displaySection = document.createElement('div');
-    Object.assign(displaySection.style, { padding: '10px 14px' });
+    // ========== DISPLAY SECTION ==========
+    const displaySection = this.createSettingsSection('Display');
 
-    const displaySectionTitle = document.createElement('div');
-    Object.assign(displaySectionTitle.style, {
-      color,
-      fontSize: '0.625rem',
-      textTransform: 'uppercase',
-      letterSpacing: '0.1em',
-      marginBottom: '8px',
-    });
-    displaySectionTitle.textContent = 'Display';
-    displaySection.appendChild(displaySectionTitle);
-
-    // Compact mode toggle
-    const compactRow = document.createElement('div');
-    Object.assign(compactRow.style, {
+    // Position dropdown
+    const positionRow = document.createElement('div');
+    Object.assign(positionRow.style, {
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'space-between',
+      marginBottom: '8px',
     });
 
-    const compactLabel = document.createElement('span');
-    Object.assign(compactLabel.style, { color: COLORS.text, fontSize: '0.6875rem' });
-    compactLabel.textContent = 'Compact Mode';
-    compactRow.appendChild(compactLabel);
+    const posLabel = document.createElement('span');
+    Object.assign(posLabel.style, { color: COLORS.text, fontSize: '0.6875rem' });
+    posLabel.textContent = 'Position';
+    positionRow.appendChild(posLabel);
 
-    // Toggle switch
-    const toggle = document.createElement('button');
-    const isCompact = this.compactMode;
-    Object.assign(toggle.style, {
-      width: '32px',
-      height: '18px',
-      borderRadius: '9px',
-      border: 'none',
-      backgroundColor: isCompact ? accentColor : `${color}40`,
-      position: 'relative',
+    const posSelect = document.createElement('select');
+    Object.assign(posSelect.style, {
+      backgroundColor: 'rgba(10, 15, 26, 0.8)',
+      border: `1px solid ${color}40`,
+      borderRadius: '4px',
+      color: COLORS.text,
+      fontSize: '0.625rem',
+      padding: '4px 6px',
       cursor: 'pointer',
-      transition: 'all 150ms',
+      fontFamily: FONT_MONO,
     });
 
-    const toggleKnob = document.createElement('span');
-    Object.assign(toggleKnob.style, {
-      position: 'absolute',
-      top: '2px',
-      left: isCompact ? '16px' : '2px',
-      width: '14px',
-      height: '14px',
-      borderRadius: '50%',
-      backgroundColor: '#fff',
-      transition: 'left 150ms',
-    });
-    toggle.appendChild(toggleKnob);
+    const positions = [
+      { value: 'bottom-left', label: 'Bottom Left' },
+      { value: 'bottom-right', label: 'Bottom Right' },
+      { value: 'bottom-center', label: 'Bottom Center' },
+      { value: 'top-left', label: 'Top Left' },
+      { value: 'top-right', label: 'Top Right' },
+    ];
 
-    toggle.onclick = () => {
-      this.toggleCompactMode();
+    positions.forEach(({ value, label }) => {
+      const option = document.createElement('option');
+      option.value = value;
+      option.textContent = label;
+      option.selected = this.options.position === value;
+      posSelect.appendChild(option);
+    });
+
+    posSelect.onchange = () => {
+      this.options.position = posSelect.value as typeof this.options.position;
+      this.settingsManager.saveSettings({ position: this.options.position });
+      this.render();
     };
-    compactRow.appendChild(toggle);
-    displaySection.appendChild(compactRow);
+    positionRow.appendChild(posSelect);
+    displaySection.appendChild(positionRow);
+
+    // Compact mode toggle
+    displaySection.appendChild(
+      this.createToggleRow('Compact Mode', this.compactMode, accentColor, () => {
+        this.toggleCompactMode();
+      })
+    );
 
     // Keyboard shortcut hint
     const shortcutHint = document.createElement('div');
     Object.assign(shortcutHint.style, {
       color: COLORS.textMuted,
       fontSize: '0.5625rem',
-      marginTop: '6px',
+      marginTop: '2px',
+      marginBottom: '8px',
     });
     shortcutHint.textContent = 'Keyboard: Cmd+Shift+M';
     displaySection.appendChild(shortcutHint);
 
+    // Accent color
+    const accentRow = document.createElement('div');
+    Object.assign(accentRow.style, { marginBottom: '6px' });
+
+    const accentLabel = document.createElement('div');
+    Object.assign(accentLabel.style, {
+      color: COLORS.text,
+      fontSize: '0.6875rem',
+      marginBottom: '6px',
+    });
+    accentLabel.textContent = 'Accent Color';
+    accentRow.appendChild(accentLabel);
+
+    const colorSwatches = document.createElement('div');
+    Object.assign(colorSwatches.style, {
+      display: 'flex',
+      gap: '6px',
+      flexWrap: 'wrap',
+    });
+
+    ACCENT_COLOR_PRESETS.forEach(({ name, value }) => {
+      const swatch = document.createElement('button');
+      const isActive = this.options.accentColor === value;
+      Object.assign(swatch.style, {
+        width: '24px',
+        height: '24px',
+        borderRadius: '50%',
+        backgroundColor: value,
+        border: isActive ? '2px solid #fff' : '2px solid transparent',
+        cursor: 'pointer',
+        transition: 'all 150ms',
+        boxShadow: isActive ? `0 0 8px ${value}` : 'none',
+      });
+      swatch.title = name;
+      swatch.onclick = () => {
+        this.options.accentColor = value;
+        this.settingsManager.saveSettings({ accentColor: value });
+        this.render();
+      };
+      colorSwatches.appendChild(swatch);
+    });
+
+    accentRow.appendChild(colorSwatches);
+    displaySection.appendChild(accentRow);
+
     popover.appendChild(displaySection);
+
+    // ========== FEATURES SECTION ==========
+    const featuresSection = this.createSettingsSection('Features');
+
+    featuresSection.appendChild(
+      this.createToggleRow('Screenshot Button', this.options.showScreenshot, accentColor, () => {
+        this.options.showScreenshot = !this.options.showScreenshot;
+        this.settingsManager.saveSettings({ showScreenshot: this.options.showScreenshot });
+        this.render();
+      })
+    );
+
+    featuresSection.appendChild(
+      this.createToggleRow('Console Badges', this.options.showConsoleBadges, accentColor, () => {
+        this.options.showConsoleBadges = !this.options.showConsoleBadges;
+        this.settingsManager.saveSettings({ showConsoleBadges: this.options.showConsoleBadges });
+        this.render();
+      })
+    );
+
+    featuresSection.appendChild(
+      this.createToggleRow('Tooltips', this.options.showTooltips, accentColor, () => {
+        this.options.showTooltips = !this.options.showTooltips;
+        this.settingsManager.saveSettings({ showTooltips: this.options.showTooltips });
+        this.render();
+      })
+    );
+
+    popover.appendChild(featuresSection);
+
+    // ========== METRICS SECTION ==========
+    const metricsSection = this.createSettingsSection('Metrics');
+
+    type MetricKey = 'breakpoint' | 'fcp' | 'lcp' | 'cls' | 'inp' | 'pageSize';
+    const metricsToggles: Array<{ key: MetricKey; label: string }> = [
+      { key: 'breakpoint', label: 'Breakpoint' },
+      { key: 'fcp', label: 'FCP' },
+      { key: 'lcp', label: 'LCP' },
+      { key: 'cls', label: 'CLS' },
+      { key: 'inp', label: 'INP' },
+      { key: 'pageSize', label: 'Page Size' },
+    ];
+
+    metricsToggles.forEach(({ key, label }) => {
+      const currentValue = this.options.showMetrics[key] ?? true;
+      metricsSection.appendChild(
+        this.createToggleRow(label, currentValue, accentColor, () => {
+          this.options.showMetrics[key] = !this.options.showMetrics[key];
+          this.settingsManager.saveSettings({
+            showMetrics: {
+              breakpoint: this.options.showMetrics.breakpoint ?? true,
+              fcp: this.options.showMetrics.fcp ?? true,
+              lcp: this.options.showMetrics.lcp ?? true,
+              cls: this.options.showMetrics.cls ?? true,
+              inp: this.options.showMetrics.inp ?? true,
+              pageSize: this.options.showMetrics.pageSize ?? true,
+            },
+          });
+          this.render();
+        })
+      );
+    });
+
+    popover.appendChild(metricsSection);
+
+    // ========== RESET SECTION ==========
+    const resetSection = document.createElement('div');
+    Object.assign(resetSection.style, {
+      padding: '10px 14px',
+      borderTop: `1px solid ${color}20`,
+    });
+
+    const resetBtn = createStyledButton({
+      color: COLORS.textMuted,
+      text: 'Reset to Defaults',
+      padding: '6px 12px',
+      fontSize: '0.625rem',
+    });
+    Object.assign(resetBtn.style, {
+      width: '100%',
+      justifyContent: 'center',
+    });
+    resetBtn.onclick = () => {
+      this.resetToDefaults();
+    };
+    resetSection.appendChild(resetBtn);
+    popover.appendChild(resetSection);
 
     this.overlayElement = popover;
     document.body.appendChild(popover);
+  }
+
+  /**
+   * Reset all settings to defaults
+   */
+  private resetToDefaults(): void {
+    this.settingsManager.resetToDefaults();
+    const defaults = DEFAULT_SETTINGS;
+    this.applySettings(defaults);
   }
 
   private renderCollapsed(): void {

@@ -4,8 +4,18 @@
  * Re-exports all handler functions.
  */
 
-export { handleSaveScreenshot } from './screenshot.js';
-export { handleDesignReviewScreenshot, DESIGN_REVIEW_PROMPT, type DesignReviewResult } from './designReview.js';
+export {
+  DESIGN_REVIEW_PROMPT,
+  type DesignReviewResult,
+  handleDesignReviewScreenshot,
+} from './designReview.js';
+export { type HmrScreenshotResult, handleHmrScreenshot } from './hmr.js';
 export { handleSaveOutline, type OutlineSaveResult } from './outline.js';
 export { handleSaveSchema, type SchemaSaveResult } from './schema.js';
-export { handleHmrScreenshot, type HmrScreenshotResult } from './hmr.js';
+export { handleSaveScreenshot } from './screenshot.js';
+export {
+  type DevBarSettings,
+  type SettingsSaveResult,
+  handleSaveSettings,
+  handleLoadSettings,
+} from './settings.js';

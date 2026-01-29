@@ -4,24 +4,24 @@
  * Handles design review screenshots with Claude Vision API.
  */
 
+import type Anthropic from '@anthropic-ai/sdk';
 import { promises as fs } from 'fs';
 import { join } from 'path';
-import Anthropic from '@anthropic-ai/sdk';
-import {
-  generateBaseFilename,
-  truncateMessage,
-  SCREENSHOT_DIR,
-  MAX_LOG_MESSAGE_LENGTH,
-} from '../../urlUtils.js';
 import {
   extractBase64FromDataUrl,
   getMediaTypeFromDataUrl,
 } from '../../browser/screenshotUtils.js';
 import {
-  getAnthropicClient,
-  CLAUDE_MODEL,
+  generateBaseFilename,
+  MAX_LOG_MESSAGE_LENGTH,
+  SCREENSHOT_DIR,
+  truncateMessage,
+} from '../../urlUtils.js';
+import {
   CLAUDE_MAX_TOKENS,
+  CLAUDE_MODEL,
   CLAUDE_PRICING,
+  getAnthropicClient,
 } from '../anthropic.js';
 import { getProjectRoot } from '../index.js';
 
@@ -162,7 +162,9 @@ export async function handleDesignReviewScreenshot(data: {
   const outputCost = (outputTokens / 1_000_000) * CLAUDE_PRICING.output;
   const totalCost = inputCost + outputCost;
 
-  console.log(`[Sweetlink] Design review tokens: ${inputTokens} input, ${outputTokens} output, total: ${totalTokens}`);
+  console.log(
+    `[Sweetlink] Design review tokens: ${inputTokens} input, ${outputTokens} output, total: ${totalTokens}`
+  );
   console.log(`[Sweetlink] Design review cost: $${totalCost.toFixed(4)}`);
 
   // Build the review markdown file
@@ -188,11 +190,15 @@ ${reviewContent}
 
 ## Console Logs Summary
 
-${logs && logs.length > 0
+${
+  logs && logs.length > 0
     ? logs
         .filter((log) => log.level === 'error' || log.level === 'warn')
         .slice(0, 10)
-        .map((log) => `- **${log.level.toUpperCase()}**: ${truncateMessage(log.message, MAX_LOG_MESSAGE_LENGTH)}`)
+        .map(
+          (log) =>
+            `- **${log.level.toUpperCase()}**: ${truncateMessage(log.message, MAX_LOG_MESSAGE_LENGTH)}`
+        )
         .join('\n') || '_No errors or warnings in console_'
     : '_No console logs captured_'
 }

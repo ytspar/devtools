@@ -1,16 +1,16 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
-  DEFAULT_SCREENSHOT_SCALE,
+  canvasToDataUrl,
   DEFAULT_SCREENSHOT_QUALITY,
+  DEFAULT_SCREENSHOT_SCALE,
   DESIGN_REVIEW_SCALE,
   DEVBAR_SCREENSHOT_QUALITY,
-  scaleCanvas,
-  canvasToDataUrl,
+  delay,
   extractBase64FromDataUrl,
+  gatherScreenshotMetadata,
   getMediaTypeFromDataUrl,
   prepareForCapture,
-  delay,
-  gatherScreenshotMetadata,
+  scaleCanvas,
 } from './screenshotUtils.js';
 
 describe('Constants', () => {
@@ -96,13 +96,18 @@ describe('scaleCanvas', () => {
   });
 
   it('throws when context is null', () => {
-    vi.spyOn(document, 'createElement').mockImplementation(() => ({
-      width: 0,
-      height: 0,
-      getContext: () => null,
-    }) as unknown as HTMLCanvasElement);
+    vi.spyOn(document, 'createElement').mockImplementation(
+      () =>
+        ({
+          width: 0,
+          height: 0,
+          getContext: () => null,
+        }) as unknown as HTMLCanvasElement
+    );
 
-    expect(() => scaleCanvas(originalCanvas, { scale: 0.5 })).toThrow('Failed to get canvas 2D context');
+    expect(() => scaleCanvas(originalCanvas, { scale: 0.5 })).toThrow(
+      'Failed to get canvas 2D context'
+    );
   });
 });
 

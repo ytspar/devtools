@@ -1,11 +1,5 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import {
-  formatArg,
-  formatArgs,
-  canvasToDataUrl,
-  prepareForCapture,
-  delay,
-} from './utils.js';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { canvasToDataUrl, delay, formatArg, formatArgs, prepareForCapture } from './utils.js';
 
 describe('formatArg', () => {
   it('formats strings as-is', () => {

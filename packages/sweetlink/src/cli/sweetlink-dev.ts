@@ -18,7 +18,7 @@ import { join } from 'path';
 // Load .env from the project directory (cwd)
 config({ path: join(process.cwd(), '.env') });
 
-import { initSweetlink, closeSweetlink } from '../server.js';
+import { closeSweetlink, initSweetlink } from '../server.js';
 
 const port = parseInt(process.env.SWEETLINK_WS_PORT || '9223', 10);
 const appPort = process.env.PORT ? parseInt(process.env.PORT, 10) : undefined;

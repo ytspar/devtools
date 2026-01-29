@@ -57,11 +57,23 @@ export function parseViewport(
 
   switch (name) {
     case 'mobile':
-      return { width: VIEWPORT_PRESETS.mobile.width, height: VIEWPORT_PRESETS.mobile.height, isMobile: true };
+      return {
+        width: VIEWPORT_PRESETS.mobile.width,
+        height: VIEWPORT_PRESETS.mobile.height,
+        isMobile: true,
+      };
     case 'tablet':
-      return { width: VIEWPORT_PRESETS.tablet.width, height: VIEWPORT_PRESETS.tablet.height, isMobile: true };
+      return {
+        width: VIEWPORT_PRESETS.tablet.width,
+        height: VIEWPORT_PRESETS.tablet.height,
+        isMobile: true,
+      };
     case 'desktop':
-      return { width: VIEWPORT_PRESETS.desktop.width, height: VIEWPORT_PRESETS.desktop.height, isMobile: false };
+      return {
+        width: VIEWPORT_PRESETS.desktop.width,
+        height: VIEWPORT_PRESETS.desktop.height,
+        isMobile: false,
+      };
   }
 
   // Try to parse "widthxheight" format
@@ -69,7 +81,7 @@ export function parseViewport(
   if (parts.length === 2) {
     const width = parseInt(parts[0], 10);
     const height = parseInt(parts[1], 10);
-    if (!isNaN(width) && !isNaN(height)) {
+    if (!Number.isNaN(width) && !Number.isNaN(height)) {
       return { width, height, isMobile: false };
     }
   }

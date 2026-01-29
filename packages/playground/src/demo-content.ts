@@ -82,7 +82,8 @@ function createConsoleTestSection(): HTMLElement {
   section.appendChild(h2);
 
   const description = document.createElement('p');
-  description.textContent = 'Click buttons to trigger console messages. DevBar captures these and shows badges for errors/warnings.';
+  description.textContent =
+    'Click buttons to trigger console messages. DevBar captures these and shows badges for errors/warnings.';
   section.appendChild(description);
 
   const buttonGroup = document.createElement('div');
@@ -133,7 +134,8 @@ function createDomQuerySection(): HTMLElement {
   section.appendChild(h2);
 
   const description = document.createElement('p');
-  description.textContent = 'Elements with various IDs, classes, and data attributes for testing DOM queries.';
+  description.textContent =
+    'Elements with various IDs, classes, and data attributes for testing DOM queries.';
   section.appendChild(description);
 
   // Cards with different selectors
@@ -300,7 +302,7 @@ function createTableSection(): HTMLElement {
   // Header
   const thead = document.createElement('thead');
   const headerRow = document.createElement('tr');
-  ['ID', 'Name', 'Status', 'Value'].forEach(text => {
+  ['ID', 'Name', 'Status', 'Value'].forEach((text) => {
     const th = document.createElement('th');
     th.textContent = text;
     headerRow.appendChild(th);
@@ -318,7 +320,7 @@ function createTableSection(): HTMLElement {
     { id: 5, name: 'Epsilon', status: 'Active', value: 300 },
   ];
 
-  data.forEach(row => {
+  data.forEach((row) => {
     const tr = document.createElement('tr');
     tr.dataset.id = String(row.id);
 

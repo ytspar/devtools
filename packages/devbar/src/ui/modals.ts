@@ -4,7 +4,7 @@
  * Modal creation utilities for the DevBar UI.
  */
 
-import { MODAL_OVERLAY_STYLES, MODAL_BOX_BASE_STYLES } from '../constants.js';
+import { MODAL_BOX_BASE_STYLES, MODAL_OVERLAY_STYLES } from '../constants.js';
 import { createStyledButton } from './buttons.js';
 
 /**
@@ -79,7 +79,9 @@ export function createModalHeader(config: ModalConfig): HTMLDivElement {
     try {
       await onCopyMd();
       copyBtn.textContent = 'Copied!';
-      setTimeout(() => { copyBtn.textContent = 'Copy MD'; }, 1500);
+      setTimeout(() => {
+        copyBtn.textContent = 'Copy MD';
+      }, 1500);
     } catch {
       console.error('[GlobalDevBar] Failed to copy to clipboard');
     }
@@ -167,7 +169,7 @@ export function createInfoBox(
     textEl.textContent = content;
     box.appendChild(textEl);
   } else {
-    content.forEach(el => box.appendChild(el));
+    content.forEach((el) => box.appendChild(el));
   }
 
   return box;

@@ -9,7 +9,11 @@ import { ACTION_BUTTON_BASE_STYLES } from '../constants.js';
 /**
  * Get button styling based on active state and color
  */
-export function getButtonStyles(color: string, isActive: boolean, isDisabled: boolean): Record<string, string> {
+export function getButtonStyles(
+  color: string,
+  isActive: boolean,
+  isDisabled: boolean
+): Record<string, string> {
   return {
     ...ACTION_BUTTON_BASE_STYLES,
     borderColor: isActive ? color : `${color}80`,

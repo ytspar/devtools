@@ -10,11 +10,7 @@ export default defineConfig({
       provider: 'v8',
       reporter: ['text', 'json', 'html'],
       include: ['packages/*/src/**/*.ts'],
-      exclude: [
-        'packages/*/src/**/*.test.ts',
-        'packages/*/src/**/index.ts',
-        '**/node_modules/**',
-      ],
+      exclude: ['packages/*/src/**/*.test.ts', 'packages/*/src/**/index.ts', '**/node_modules/**'],
     },
   },
 });

@@ -17,9 +17,8 @@ export function handleGetLogs(
 
   if (command.filter) {
     const filterLower = command.filter.toLowerCase();
-    logs = logs.filter(log =>
-      log.level === filterLower ||
-      log.message.toLowerCase().includes(filterLower)
+    logs = logs.filter(
+      (log) => log.level === filterLower || log.message.toLowerCase().includes(filterLower)
     );
   }
 
@@ -28,8 +27,8 @@ export function handleGetLogs(
     data: {
       logs,
       totalCount: consoleLogs.length,
-      filteredCount: logs.length
+      filteredCount: logs.length,
     },
-    timestamp: Date.now()
+    timestamp: Date.now(),
   };
 }
