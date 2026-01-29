@@ -38,7 +38,6 @@ export function sweetlink(options: SweetlinkPluginOptions = {}): Plugin {
     apply: 'serve', // Only run in dev mode
 
     configureServer(viteServer) {
-
       // Start Sweetlink when Vite server is ready
       viteServer.httpServer?.once('listening', () => {
         const address = viteServer.httpServer?.address();

@@ -348,6 +348,17 @@ export class GlobalDevBar {
   }
 
   /**
+   * Reset position style properties on an element to clear stale values
+   */
+  private resetPositionStyles(element: HTMLElement): void {
+    element.style.top = '';
+    element.style.bottom = '';
+    element.style.left = '';
+    element.style.right = '';
+    element.style.transform = '';
+  }
+
+  /**
    * Create a collapsed count badge (used for error/warning counts in minimized state)
    */
   private createCollapsedBadge(count: number, bgColor: string, rightPos: string): HTMLSpanElement {
@@ -890,6 +901,45 @@ export class GlobalDevBar {
     updateBreakpointInfo();
     this.resizeHandler = updateBreakpointInfo;
     window.addEventListener('resize', this.resizeHandler);
+  }
+
+  /**
+   * Get which metrics should be visible vs hidden based on current breakpoint.
+   * Returns metrics in order of importance (least important hidden first).
+   *
+   * Visibility by breakpoint:
+   * - lg, xl, 2xl: Show all metrics
+   * - md: Hide pageSize, INP
+   * - sm: Hide pageSize, INP, CLS
+   * - base: Hide pageSize, INP, CLS, LCP (only breakpoint + FCP visible)
+   */
+  private getResponsiveMetricVisibility(): {
+    visible: Array<'fcp' | 'lcp' | 'cls' | 'inp' | 'pageSize'>;
+    hidden: Array<'fcp' | 'lcp' | 'cls' | 'inp' | 'pageSize'>;
+  } {
+    const bp = this.breakpointInfo?.tailwindBreakpoint ?? 'base';
+    const allMetrics: Array<'fcp' | 'lcp' | 'cls' | 'inp' | 'pageSize'> = [
+      'fcp',
+      'lcp',
+      'cls',
+      'inp',
+      'pageSize',
+    ];
+
+    // Define which metrics to hide at each breakpoint (cumulative from least important)
+    const hiddenByBreakpoint: Record<string, Array<'fcp' | 'lcp' | 'cls' | 'inp' | 'pageSize'>> = {
+      '2xl': [],
+      xl: [],
+      lg: [],
+      md: ['pageSize', 'inp'],
+      sm: ['pageSize', 'inp', 'cls'],
+      base: ['pageSize', 'inp', 'cls', 'lcp'],
+    };
+
+    const hidden = hiddenByBreakpoint[bp] || [];
+    const visible = allMetrics.filter((m) => !hidden.includes(m));
+
+    return { visible, hidden };
   }
 
   private setupPerformanceMonitoring(): void {
@@ -2200,12 +2250,7 @@ export class GlobalDevBar {
     const posStyle = positionStyles[position] ?? positionStyles['bottom-left'];
     const wrapper = this.container;
 
-    // Reset position properties first
-    wrapper.style.top = '';
-    wrapper.style.bottom = '';
-    wrapper.style.left = '';
-    wrapper.style.right = '';
-    wrapper.style.transform = '';
+    this.resetPositionStyles(wrapper);
 
     Object.assign(wrapper.style, {
       position: 'fixed',
@@ -2937,12 +2982,7 @@ export class GlobalDevBar {
       `Click to expand DevBar${this.sweetlinkConnected ? ' (Sweetlink connected)' : ' (Sweetlink not connected)'}${errorCount > 0 ? `\n${errorCount} console error${errorCount === 1 ? '' : 's'}` : ''}`
     );
 
-    // Reset position properties first to avoid stale values
-    wrapper.style.top = '';
-    wrapper.style.bottom = '';
-    wrapper.style.left = '';
-    wrapper.style.right = '';
-    wrapper.style.transform = '';
+    this.resetPositionStyles(wrapper);
 
     Object.assign(wrapper.style, {
       position: 'fixed',
@@ -3024,12 +3064,7 @@ export class GlobalDevBar {
 
     const wrapper = this.container;
 
-    // Reset position properties first to avoid stale values from previous renders
-    wrapper.style.top = '';
-    wrapper.style.bottom = '';
-    wrapper.style.left = '';
-    wrapper.style.right = '';
-    wrapper.style.transform = '';
+    this.resetPositionStyles(wrapper);
 
     // Calculate size values with overrides or defaults
     // Width always fit-content, maxWidth prevents overlap with other dev bars
@@ -3188,8 +3223,10 @@ export class GlobalDevBar {
       infoSection.appendChild(bpSpan);
     }
 
-    // Performance stats
+    // Performance stats with responsive visibility
     if (this.perfStats) {
+      const { visible, hidden } = this.getResponsiveMetricVisibility();
+
       const addSeparator = () => {
         const sep = document.createElement('span');
         sep.style.opacity = '0.4';
@@ -3197,78 +3234,127 @@ export class GlobalDevBar {
         infoSection.appendChild(sep);
       };
 
-      if (showMetrics.fcp) {
+      // Metric configurations for reuse
+      const metricConfigs: Record<
+        'fcp' | 'lcp' | 'cls' | 'inp' | 'pageSize',
+        {
+          label: string;
+          value: string;
+          title: string;
+          description: string;
+          thresholds?: { good: string; needsWork: string; poor: string };
+        }
+      > = {
+        fcp: {
+          label: 'FCP',
+          value: this.perfStats.fcp,
+          title: 'First Contentful Paint (FCP)',
+          description: 'Time until the first text or image renders on screen.',
+          thresholds: { good: '<1.8s', needsWork: '1.8-3s', poor: '>3s' },
+        },
+        lcp: {
+          label: 'LCP',
+          value: this.perfStats.lcp,
+          title: 'Largest Contentful Paint (LCP)',
+          description: 'Time until the largest visible element renders on screen.',
+          thresholds: { good: '<2.5s', needsWork: '2.5-4s', poor: '>4s' },
+        },
+        cls: {
+          label: 'CLS',
+          value: this.perfStats.cls,
+          title: 'Cumulative Layout Shift (CLS)',
+          description: 'Visual stability score. Higher values mean more unexpected layout shifts.',
+          thresholds: { good: '<0.1', needsWork: '0.1-0.25', poor: '>0.25' },
+        },
+        inp: {
+          label: 'INP',
+          value: this.perfStats.inp,
+          title: 'Interaction to Next Paint (INP)',
+          description: 'Responsiveness to user input. Measures the longest interaction delay.',
+          thresholds: { good: '<200ms', needsWork: '200-500ms', poor: '>500ms' },
+        },
+        pageSize: {
+          label: '',
+          value: this.perfStats.totalSize,
+          title: 'Total Page Size',
+          description:
+            'Compressed/transferred size including HTML, CSS, JS, images, and other resources.',
+        },
+      };
+
+      // Render visible metrics
+      for (const metric of visible) {
+        if (!showMetrics[metric]) continue;
+        const config = metricConfigs[metric];
+
         addSeparator();
-        const fcpSpan = document.createElement('span');
-        fcpSpan.className = 'devbar-item';
-        Object.assign(fcpSpan.style, { opacity: '0.85', cursor: 'default' });
-        fcpSpan.textContent = `FCP ${this.perfStats.fcp}`;
-        this.attachMetricTooltip(
-          fcpSpan,
-          'First Contentful Paint (FCP)',
-          'Time until the first text or image renders on screen.',
-          { good: '<1.8s', needsWork: '1.8-3s', poor: '>3s' }
-        );
-        infoSection.appendChild(fcpSpan);
+        const span = document.createElement('span');
+        span.className = 'devbar-item';
+        Object.assign(span.style, {
+          opacity: metric === 'pageSize' ? '0.7' : '0.85',
+          cursor: 'default',
+        });
+        span.textContent = config.label ? `${config.label} ${config.value}` : config.value;
+
+        if (config.thresholds) {
+          this.attachMetricTooltip(span, config.title, config.description, config.thresholds);
+        } else {
+          this.attachInfoTooltip(span, config.title, config.description);
+        }
+        infoSection.appendChild(span);
       }
 
-      if (showMetrics.lcp) {
+      // Render ellipsis button for hidden metrics
+      const hiddenMetricsEnabled = hidden.filter((m) => showMetrics[m]);
+      if (hiddenMetricsEnabled.length > 0) {
         addSeparator();
-        const lcpSpan = document.createElement('span');
-        lcpSpan.className = 'devbar-item';
-        Object.assign(lcpSpan.style, { opacity: '0.85', cursor: 'default' });
-        lcpSpan.textContent = `LCP ${this.perfStats.lcp}`;
-        this.attachMetricTooltip(
-          lcpSpan,
-          'Largest Contentful Paint (LCP)',
-          'Time until the largest visible element renders on screen.',
-          { good: '<2.5s', needsWork: '2.5-4s', poor: '>4s' }
-        );
-        infoSection.appendChild(lcpSpan);
-      }
+        const ellipsisBtn = document.createElement('span');
+        ellipsisBtn.className = 'devbar-item devbar-clickable';
+        Object.assign(ellipsisBtn.style, {
+          opacity: '0.7',
+          cursor: 'pointer',
+          padding: '0 2px',
+        });
+        ellipsisBtn.textContent = '···';
 
-      if (showMetrics.cls) {
-        addSeparator();
-        const clsSpan = document.createElement('span');
-        clsSpan.className = 'devbar-item';
-        Object.assign(clsSpan.style, { opacity: '0.85', cursor: 'default' });
-        clsSpan.textContent = `CLS ${this.perfStats.cls}`;
-        this.attachMetricTooltip(
-          clsSpan,
-          'Cumulative Layout Shift (CLS)',
-          'Visual stability score. Higher values mean more unexpected layout shifts.',
-          { good: '<0.1', needsWork: '0.1-0.25', poor: '>0.25' }
-        );
-        infoSection.appendChild(clsSpan);
-      }
+        // Attach tooltip showing hidden metrics
+        this.attachHtmlTooltip(ellipsisBtn, (tooltip) => {
+          this.addTooltipTitle(tooltip, 'More Metrics');
 
-      if (showMetrics.inp) {
-        addSeparator();
-        const inpSpan = document.createElement('span');
-        inpSpan.className = 'devbar-item';
-        Object.assign(inpSpan.style, { opacity: '0.85', cursor: 'default' });
-        inpSpan.textContent = `INP ${this.perfStats.inp}`;
-        this.attachMetricTooltip(
-          inpSpan,
-          'Interaction to Next Paint (INP)',
-          'Responsiveness to user input. Measures the longest interaction delay.',
-          { good: '<200ms', needsWork: '200-500ms', poor: '>500ms' }
-        );
-        infoSection.appendChild(inpSpan);
-      }
+          const metricsContainer = document.createElement('div');
+          Object.assign(metricsContainer.style, {
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '6px',
+            marginTop: '8px',
+          });
 
-      if (showMetrics.pageSize) {
-        addSeparator();
-        const sizeSpan = document.createElement('span');
-        sizeSpan.className = 'devbar-item';
-        Object.assign(sizeSpan.style, { opacity: '0.7', cursor: 'default' });
-        this.attachInfoTooltip(
-          sizeSpan,
-          'Total Page Size',
-          'Compressed/transferred size including HTML, CSS, JS, images, and other resources.'
-        );
-        sizeSpan.textContent = this.perfStats.totalSize;
-        infoSection.appendChild(sizeSpan);
+          for (const metric of hiddenMetricsEnabled) {
+            const config = metricConfigs[metric];
+            const row = document.createElement('div');
+            Object.assign(row.style, {
+              display: 'flex',
+              justifyContent: 'space-between',
+              gap: '12px',
+            });
+
+            const labelSpan = document.createElement('span');
+            Object.assign(labelSpan.style, { color: CSS_COLORS.textMuted });
+            labelSpan.textContent = config.title.split('(')[0].trim();
+
+            const valueSpan = document.createElement('span');
+            Object.assign(valueSpan.style, { color: CSS_COLORS.text, fontWeight: '500' });
+            valueSpan.textContent = config.value;
+
+            row.appendChild(labelSpan);
+            row.appendChild(valueSpan);
+            metricsContainer.appendChild(row);
+          }
+
+          tooltip.appendChild(metricsContainer);
+        });
+
+        infoSection.appendChild(ellipsisBtn);
       }
     }
 

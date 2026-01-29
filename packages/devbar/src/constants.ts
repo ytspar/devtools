@@ -4,6 +4,8 @@
  * Shared constants used by the DevBar components.
  */
 
+import type { ThemeMode } from './types.js';
+
 // Re-export shared constants from sweetlink's browser modules to avoid pulling in Node.js-only code
 export { MAX_CONSOLE_LOGS } from '@ytspar/sweetlink/browser/consoleCapture';
 export { DEVBAR_SCREENSHOT_QUALITY } from '@ytspar/sweetlink/browser/screenshotUtils';
@@ -341,8 +343,6 @@ export type DevBarThemeInput = {
 // ============================================================================
 // Theme Mode Utilities
 // ============================================================================
-
-import type { ThemeMode } from './types.js';
 
 /**
  * Get the stored theme mode preference

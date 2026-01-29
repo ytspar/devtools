@@ -98,14 +98,12 @@ export function startSweetlink(options: AutoStartOptions = {}): void {
     },
   });
 
-  // Graceful shutdown
-  process.on('SIGTERM', () => {
+  // Graceful shutdown on SIGTERM and SIGINT
+  const handleShutdown = (): void => {
     closeSweetlink();
-  });
-
-  process.on('SIGINT', () => {
-    closeSweetlink();
-  });
+  };
+  process.on('SIGTERM', handleShutdown);
+  process.on('SIGINT', handleShutdown);
 }
 
 /**
