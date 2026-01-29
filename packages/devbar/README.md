@@ -1,5 +1,7 @@
 # @ytspar/devbar
 
+[![npm](https://img.shields.io/npm/v/@ytspar/devbar)](https://www.npmjs.com/package/@ytspar/devbar)
+
 Development toolbar with Sweetlink integration for browser-based development tools.
 
 ## Features
@@ -17,6 +19,9 @@ Development toolbar with Sweetlink integration for browser-based development too
 
 ```bash
 pnpm add @ytspar/devbar
+
+# Or install canary (latest from main)
+pnpm add @ytspar/devbar@canary
 ```
 
 ## Usage

@@ -46,6 +46,23 @@ pnpm add @ytspar/sweetlink
 pnpm add @ytspar/devbar @ytspar/sweetlink
 ```
 
+### Canary Releases
+
+Canary versions are published on every push to `main`:
+
+```bash
+# Install latest canary
+pnpm add @ytspar/devbar@canary
+pnpm add @ytspar/sweetlink@canary
+```
+
+### NPM Registry
+
+| Package | npm |
+|---------|-----|
+| **@ytspar/devbar** | [![npm](https://img.shields.io/npm/v/@ytspar/devbar)](https://www.npmjs.com/package/@ytspar/devbar) |
+| **@ytspar/sweetlink** | [![npm](https://img.shields.io/npm/v/@ytspar/sweetlink)](https://www.npmjs.com/package/@ytspar/sweetlink) |
+
 ## Environment Variables
 
 Create a `.env` file in your project root. Sweetlink uses these variables:
@@ -432,38 +449,32 @@ devtools/
 
 ## Architecture
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│  Claude AI Agent (via CLI)                                  │
-│  sweetlink screenshot | logs | query | exec | click         │
-└─────────────────────────┬───────────────────────────────────┘
-                          │
-                    WebSocket (port 9223)
-                          │
-┌─────────────────────────┼───────────────────────────────────┐
-│  Sweetlink Server       │                                   │
-│  Routes commands between CLI and browser                    │
-└─────────────────────────┼───────────────────────────────────┘
-                          │
-                    WebSocket (port 9223)
-                          │
-┌─────────────────────────┼───────────────────────────────────┐
-│  Browser (Your App)     │                                   │
-│  ┌──────────────────────▼─────────────────────────────┐    │
-│  │ SweetlinkBridge                                     │    │
-│  │ - Captures console logs                             │    │
-│  │ - Executes commands (screenshot, query, exec)       │    │
-│  │ - Auto-reconnects on disconnect                     │    │
-│  └─────────────────────────────────────────────────────┘    │
-│  ┌─────────────────────────────────────────────────────┐    │
-│  │ GlobalDevBar                                         │    │
-│  │ - Breakpoint indicator                               │    │
-│  │ - Performance stats (FCP, LCP)                       │    │
-│  │ - Console error/warning badges                       │    │
-│  │ - Screenshot button                                  │    │
-│  │ - Custom controls                                    │    │
-│  └─────────────────────────────────────────────────────┘    │
-└─────────────────────────────────────────────────────────────┘
+```mermaid
+flowchart TB
+    subgraph CLI["Claude AI Agent (CLI)"]
+        commands["sweetlink screenshot | logs | query | exec | click"]
+    end
+
+    subgraph Server["Sweetlink Server"]
+        router["Routes commands between CLI and browser"]
+    end
+
+    subgraph Browser["Browser (Your App)"]
+        subgraph Bridge["SweetlinkBridge"]
+            b1["Captures console logs"]
+            b2["Executes commands (screenshot, query, exec)"]
+            b3["Auto-reconnects on disconnect"]
+        end
+        subgraph DevBar["GlobalDevBar"]
+            d1["Breakpoint indicator"]
+            d2["Performance stats (FCP, LCP)"]
+            d3["Console error/warning badges"]
+            d4["Screenshot button"]
+        end
+    end
+
+    CLI <-->|"WebSocket :9223"| Server
+    Server <-->|"WebSocket :9223"| Browser
 ```
 
 ## Token Efficiency

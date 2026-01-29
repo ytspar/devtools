@@ -1,4 +1,6 @@
-# @sweetlink/dev-toolkit
+# @ytspar/sweetlink
+
+[![npm](https://img.shields.io/npm/v/@ytspar/sweetlink)](https://www.npmjs.com/package/@ytspar/sweetlink)
 
 > Autonomous development toolkit for Claude AI agents - screenshots, DOM queries, console logs, and JavaScript execution via WebSocket and Chrome DevTools Protocol
 
@@ -39,11 +41,14 @@ This provides AI agents with easy access to visual state and debugging informati
 ## Installation
 
 ```bash
-npm install @sweetlink/dev-toolkit
+npm install @ytspar/sweetlink
 # or
-pnpm add @sweetlink/dev-toolkit
+pnpm add @ytspar/sweetlink
 # or
-yarn add @sweetlink/dev-toolkit
+yarn add @ytspar/sweetlink
+
+# Install canary (latest from main)
+pnpm add @ytspar/sweetlink@canary
 ```
 
 ## Quick Start
@@ -54,7 +59,7 @@ yarn add @sweetlink/dev-toolkit
 
 ```typescript
 // server.ts or entry.server.tsx
-import { initSweetlink } from '@sweetlink/dev-toolkit';
+import { initSweetlink } from '@ytspar/sweetlink';
 
 if (process.env.NODE_ENV === 'development') {
   const port = parseInt(process.env.SWEETLINK_WS_PORT || '9223', 10);
@@ -67,7 +72,7 @@ if (process.env.NODE_ENV === 'development') {
 
 ```typescript
 // next.config.js
-const { initSweetlink } = require('@sweetlink/dev-toolkit');
+const { initSweetlink } = require('@ytspar/sweetlink');
 
 if (process.env.NODE_ENV === 'development') {
   initSweetlink({ port: 9223 });
@@ -83,7 +88,7 @@ module.exports = {
 ```typescript
 // vite.config.ts
 import { defineConfig } from 'vite';
-import { initSweetlink } from '@sweetlink/dev-toolkit';
+import { initSweetlink } from '@ytspar/sweetlink';
 
 if (process.env.NODE_ENV === 'development') {
   initSweetlink({ port: 9223 });
@@ -100,7 +105,7 @@ export default defineConfig({
 
 ```typescript
 // app/root.tsx (Remix) or _app.tsx (Next.js) or App.tsx (React)
-import { SweetlinkBridge } from '@sweetlink/dev-toolkit/browser';
+import { SweetlinkBridge } from '@ytspar/sweetlink/browser';
 
 export default function App() {
   return (
@@ -115,7 +120,7 @@ export default function App() {
 #### Custom Theme Colors
 
 ```typescript
-import { SweetlinkBridge } from '@sweetlink/dev-toolkit/browser';
+import { SweetlinkBridge } from '@ytspar/sweetlink/browser';
 
 export default function App() {
   return (
@@ -314,7 +319,7 @@ export CHROME_CDP_PORT=9222
 ### Server
 
 ```typescript
-import { initSweetlink, closeSweetlink } from '@sweetlink/dev-toolkit';
+import { initSweetlink, closeSweetlink } from '@ytspar/sweetlink';
 
 // Start server
 const wss = initSweetlink({ port: 9223 });
@@ -331,7 +336,7 @@ import {
   getCDPBrowser,
   screenshotViaCDP,
   getNetworkRequestsViaCDP
-} from '@sweetlink/dev-toolkit/cdp';
+} from '@ytspar/sweetlink/cdp';
 
 // Check if CDP is available
 const hasCDP = await detectCDP();
@@ -351,8 +356,8 @@ const requests = await getNetworkRequestsViaCDP({
 ### Browser Component
 
 ```typescript
-import { SweetlinkBridge } from '@sweetlink/dev-toolkit/browser';
-import type { SweetlinkBridgeProps } from '@sweetlink/dev-toolkit/browser';
+import { SweetlinkBridge } from '@ytspar/sweetlink/browser';
+import type { SweetlinkBridgeProps } from '@ytspar/sweetlink/browser';
 
 // Default usage (connects to ws://localhost:9223, standard colors)
 <SweetlinkBridge />
@@ -386,43 +391,32 @@ import type { SweetlinkBridgeProps } from '@sweetlink/dev-toolkit/browser';
 
 ## Architecture
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│  Claude AI Agent (via CLI)                                  │
-│  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐   │
-│  │Screenshot│  │ DOM Query│  │  Logs    │  │  Exec JS │   │
-│  └────┬─────┘  └────┬─────┘  └────┬─────┘  └────┬─────┘   │
-│       │             │              │             │          │
-│       └─────────────┴──────────────┴─────────────┘          │
-│                         │                                    │
-└─────────────────────────┼────────────────────────────────────┘
-                          │
-                    WebSocket (port 9223)
-                          │
-┌─────────────────────────┼────────────────────────────────────┐
-│  Sweetlink Server       │                                    │
-│  ┌──────────────────────▼─────────────────────────┐         │
-│  │ WebSocket Server (Multiplexer)                 │         │
-│  │ - Routes CLI commands to browser               │         │
-│  │ - Routes browser responses to CLI              │         │
-│  └──────────────────────┬─────────────────────────┘         │
-└─────────────────────────┼────────────────────────────────────┘
-                          │
-                    WebSocket (port 9223)
-                          │
-┌─────────────────────────┼────────────────────────────────────┐
-│  Browser (Your App)     │                                    │
-│  ┌──────────────────────▼─────────────────────────┐         │
-│  │ SweetlinkBridge Component                      │         │
-│  │ - Captures console logs                        │         │
-│  │ - Executes commands (screenshot, query, exec)  │         │
-│  │ - Auto-reconnects on disconnect                │         │
-│  └────────────────────────────────────────────────┘         │
-│                                                               │
-│  ┌────────────────────────────────────────────────┐         │
-│  │ html2canvas (screenshots)                      │         │
-│  └────────────────────────────────────────────────┘         │
-└───────────────────────────────────────────────────────────────┘
+```mermaid
+flowchart TB
+    subgraph CLI["Claude AI Agent (CLI)"]
+        screenshot["Screenshot"]
+        query["DOM Query"]
+        logs["Logs"]
+        exec["Exec JS"]
+    end
+
+    subgraph Server["Sweetlink Server"]
+        mux["WebSocket Multiplexer"]
+        r1["Routes CLI commands to browser"]
+        r2["Routes browser responses to CLI"]
+    end
+
+    subgraph Browser["Browser (Your App)"]
+        subgraph Bridge["SweetlinkBridge"]
+            b1["Captures console logs"]
+            b2["Executes commands (screenshot, query, exec)"]
+            b3["Auto-reconnects on disconnect"]
+        end
+        html2canvas["html2canvas (screenshots)"]
+    end
+
+    CLI <-->|"WebSocket :9223"| Server
+    Server <-->|"WebSocket :9223"| Browser
 ```
 
 ## Use Cases
