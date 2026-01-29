@@ -1,13 +1,20 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import {
-  TAILWIND_BREAKPOINTS,
   BUTTON_COLORS,
   CATEGORY_COLORS,
   DEVBAR_THEME,
-  generateThemeCSSVars,
-  injectThemeCSS,
+  DEVBAR_THEME_LIGHT,
   generateBreakpointCSS,
+  generateThemeCSSVars,
+  getEffectiveTheme,
+  getStoredThemeMode,
+  getTheme,
+  getThemeColors,
+  injectThemeCSS,
   MAX_CONSOLE_LOGS,
+  setStoredThemeMode,
+  STORAGE_KEYS,
+  TAILWIND_BREAKPOINTS,
   WS_PORT,
 } from './constants.js';
 
@@ -31,7 +38,7 @@ describe('TAILWIND_BREAKPOINTS', () => {
   });
 
   it('has labels for each breakpoint', () => {
-    Object.values(TAILWIND_BREAKPOINTS).forEach(bp => {
+    Object.values(TAILWIND_BREAKPOINTS).forEach((bp) => {
       expect(bp.label).toBeDefined();
       expect(typeof bp.label).toBe('string');
     });
@@ -49,7 +56,7 @@ describe('BUTTON_COLORS', () => {
   });
 
   it('has valid hex color values', () => {
-    Object.values(BUTTON_COLORS).forEach(color => {
+    Object.values(BUTTON_COLORS).forEach((color) => {
       expect(color).toMatch(/^#[0-9a-f]{6}$/i);
     });
   });
@@ -68,7 +75,7 @@ describe('CATEGORY_COLORS', () => {
   });
 
   it('has valid hex color values', () => {
-    Object.values(CATEGORY_COLORS).forEach(color => {
+    Object.values(CATEGORY_COLORS).forEach((color) => {
       expect(color).toMatch(/^#[0-9a-f]{6}$/i);
     });
   });
@@ -216,5 +223,131 @@ describe('Constants values', () => {
   it('WS_PORT is a valid port number', () => {
     expect(WS_PORT).toBeGreaterThan(1024);
     expect(WS_PORT).toBeLessThan(65536);
+  });
+});
+
+describe('STORAGE_KEYS', () => {
+  it('has themeMode key', () => {
+    expect(STORAGE_KEYS.themeMode).toBe('devbar-theme-mode');
+  });
+
+  it('has compactMode key', () => {
+    expect(STORAGE_KEYS.compactMode).toBe('devbar-compact-mode');
+  });
+});
+
+describe('DEVBAR_THEME_LIGHT', () => {
+  it('has colors section', () => {
+    expect(DEVBAR_THEME_LIGHT.colors).toBeDefined();
+    expect(DEVBAR_THEME_LIGHT.colors.primary).toBeDefined();
+    expect(DEVBAR_THEME_LIGHT.colors.bg).toBeDefined();
+    expect(DEVBAR_THEME_LIGHT.colors.text).toBeDefined();
+  });
+
+  it('has different colors than dark theme', () => {
+    expect(DEVBAR_THEME_LIGHT.colors.bg).not.toBe(DEVBAR_THEME.colors.bg);
+    expect(DEVBAR_THEME_LIGHT.colors.text).not.toBe(DEVBAR_THEME.colors.text);
+  });
+
+  it('shares fonts with dark theme', () => {
+    expect(DEVBAR_THEME_LIGHT.fonts).toBe(DEVBAR_THEME.fonts);
+  });
+
+  it('shares typography with dark theme', () => {
+    expect(DEVBAR_THEME_LIGHT.typography).toBe(DEVBAR_THEME.typography);
+  });
+});
+
+describe('Theme storage utilities', () => {
+  beforeEach(() => {
+    localStorage.removeItem(STORAGE_KEYS.themeMode);
+  });
+
+  afterEach(() => {
+    localStorage.removeItem(STORAGE_KEYS.themeMode);
+  });
+
+  describe('getStoredThemeMode', () => {
+    it('returns system when nothing stored', () => {
+      expect(getStoredThemeMode()).toBe('system');
+    });
+
+    it('returns stored dark value', () => {
+      localStorage.setItem(STORAGE_KEYS.themeMode, 'dark');
+      expect(getStoredThemeMode()).toBe('dark');
+    });
+
+    it('returns stored light value', () => {
+      localStorage.setItem(STORAGE_KEYS.themeMode, 'light');
+      expect(getStoredThemeMode()).toBe('light');
+    });
+
+    it('returns stored system value', () => {
+      localStorage.setItem(STORAGE_KEYS.themeMode, 'system');
+      expect(getStoredThemeMode()).toBe('system');
+    });
+
+    it('returns system for invalid stored value', () => {
+      localStorage.setItem(STORAGE_KEYS.themeMode, 'invalid');
+      expect(getStoredThemeMode()).toBe('system');
+    });
+  });
+
+  describe('setStoredThemeMode', () => {
+    it('stores dark mode', () => {
+      setStoredThemeMode('dark');
+      expect(localStorage.getItem(STORAGE_KEYS.themeMode)).toBe('dark');
+    });
+
+    it('stores light mode', () => {
+      setStoredThemeMode('light');
+      expect(localStorage.getItem(STORAGE_KEYS.themeMode)).toBe('light');
+    });
+
+    it('stores system mode', () => {
+      setStoredThemeMode('system');
+      expect(localStorage.getItem(STORAGE_KEYS.themeMode)).toBe('system');
+    });
+  });
+});
+
+describe('getEffectiveTheme', () => {
+  it('returns dark for dark mode', () => {
+    expect(getEffectiveTheme('dark')).toBe('dark');
+  });
+
+  it('returns light for light mode', () => {
+    expect(getEffectiveTheme('light')).toBe('light');
+  });
+
+  it('returns dark or light for system mode', () => {
+    const result = getEffectiveTheme('system');
+    expect(['dark', 'light']).toContain(result);
+  });
+});
+
+describe('getThemeColors', () => {
+  it('returns dark colors for dark mode', () => {
+    const colors = getThemeColors('dark');
+    expect(colors.bg).toBe(DEVBAR_THEME.colors.bg);
+  });
+
+  it('returns light colors for light mode', () => {
+    const colors = getThemeColors('light');
+    expect(colors.bg).toBe(DEVBAR_THEME_LIGHT.colors.bg);
+  });
+});
+
+describe('getTheme', () => {
+  it('returns dark theme for dark mode', () => {
+    const theme = getTheme('dark');
+    expect(theme.colors.bg).toBe(DEVBAR_THEME.colors.bg);
+    expect(theme.shadows).toBe(DEVBAR_THEME.shadows);
+  });
+
+  it('returns light theme for light mode', () => {
+    const theme = getTheme('light');
+    expect(theme.colors.bg).toBe(DEVBAR_THEME_LIGHT.colors.bg);
+    expect(theme.shadows).toBe(DEVBAR_THEME_LIGHT.shadows);
   });
 });
