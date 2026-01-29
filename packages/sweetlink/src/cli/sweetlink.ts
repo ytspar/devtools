@@ -938,6 +938,29 @@ async function closeServerGracefully(port: number): Promise<boolean> {
 }
 
 /**
+ * Find a working lsof path across different systems
+ */
+async function findLsofPath(): Promise<string> {
+  const { exec } = await import('child_process');
+  const { promisify } = await import('util');
+  const execAsync = promisify(exec);
+
+  // macOS: /usr/sbin/lsof, Linux: /usr/bin/lsof, fallback: PATH lookup
+  const candidates = ['/usr/sbin/lsof', '/usr/bin/lsof', 'lsof'];
+
+  for (const path of candidates) {
+    try {
+      await execAsync(`${path} -v`);
+      return path;
+    } catch {
+      // Try next path
+    }
+  }
+
+  return 'lsof'; // Fallback to PATH lookup
+}
+
+/**
  * Find and kill process using a specific port (fallback method)
  */
 async function killProcessOnPort(port: number): Promise<boolean> {
@@ -945,24 +968,9 @@ async function killProcessOnPort(port: number): Promise<boolean> {
   const { promisify } = await import('util');
   const execAsync = promisify(exec);
 
-  // Use full paths to ensure commands work in all environments
-  // macOS: /usr/sbin/lsof, Linux: /usr/bin/lsof
-  const lsofPaths = ['/usr/sbin/lsof', '/usr/bin/lsof', 'lsof'];
-  const killPath = '/bin/kill';
-
-  let lsofPath = 'lsof';
-  for (const p of lsofPaths) {
-    try {
-      await execAsync(`${p} -v`);
-      lsofPath = p;
-      break;
-    } catch {
-      // Try next path
-    }
-  }
+  const lsofPath = await findLsofPath();
 
   try {
-    // Find PID using lsof
     const { stdout } = await execAsync(`${lsofPath} -ti :${port}`);
     const pids = stdout.trim().split('\n').filter(Boolean);
 
@@ -970,10 +978,9 @@ async function killProcessOnPort(port: number): Promise<boolean> {
       return false;
     }
 
-    // Kill each process
     for (const pid of pids) {
       try {
-        await execAsync(`${killPath} -9 ${pid}`);
+        await execAsync(`/bin/kill -9 ${pid}`);
         console.log(`  Killed process ${pid} on port ${port}`);
       } catch {
         // Process may have already exited
@@ -993,17 +1000,10 @@ async function cleanup(options: { force?: boolean; verbose?: boolean }) {
   console.log('[Sweetlink] Scanning for stale servers...\n');
 
   const portsToScan = getPortsToScan();
-  const foundServers: SweetlinkServerInfo[] = [];
 
-  // Scan all ports in parallel
-  const scanPromises = portsToScan.map(async (port) => {
-    const info = await checkPort(port);
-    if (info) {
-      foundServers.push(info);
-    }
-  });
-
-  await Promise.all(scanPromises);
+  // Scan all ports in parallel and filter to found servers
+  const scanResults = await Promise.all(portsToScan.map(checkPort));
+  const foundServers = scanResults.filter((info): info is SweetlinkServerInfo => info !== null);
 
   if (foundServers.length === 0) {
     console.log('[Sweetlink] No stale servers found.');

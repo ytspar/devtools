@@ -1185,19 +1185,6 @@ export class GlobalDevBar {
    * Toggle compact mode
    */
   toggleCompactMode(): void {
-    // Capture the current connection dot position before switching modes
-    if (this.container) {
-      const dotEl = this.container.querySelector('.devbar-clickable span') as HTMLElement;
-      if (dotEl) {
-        const rect = dotEl.getBoundingClientRect();
-        this.lastDotPosition = {
-          left: rect.left + rect.width / 2,
-          top: rect.top + rect.height / 2,
-          bottom: window.innerHeight - (rect.top + rect.height / 2),
-        };
-      }
-    }
-
     this.compactMode = !this.compactMode;
     this.settingsManager.saveSettings({ compactMode: this.compactMode });
     this.debug.state('Compact mode toggled', { compactMode: this.compactMode });
@@ -2258,52 +2245,18 @@ export class GlobalDevBar {
     const { position, accentColor } = this.options;
     const { errorCount, warningCount } = this.getLogCounts();
 
-    // Dot offset from container edge in compact mode:
-    // padding-left (10px) + half indicator (6px) + border (1px) = 17px from left
-    // padding-top (6px) + half indicator (6px) + border (1px) = 13px from top
-    const DOT_OFFSET_LEFT = 17;
-    const DOT_OFFSET_TOP = 13;
-
-    let posStyle: {
-      bottom?: string;
-      left?: string;
-      top?: string;
-      right?: string;
-      transform?: string;
+    // Simple position styles - same anchor points as expanded mode
+    const positionStyles: Record<
+      string,
+      { bottom?: string; left?: string; top?: string; right?: string; transform?: string }
+    > = {
+      'bottom-left': { bottom: '20px', left: '80px' },
+      'bottom-right': { bottom: '20px', right: '16px' },
+      'top-left': { top: '20px', left: '80px' },
+      'top-right': { top: '20px', right: '16px' },
+      'bottom-center': { bottom: '12px', left: '50%', transform: 'translateX(-50%)' },
     };
-
-    // Use captured dot position to align the compact bar's dot with where it was
-    // Always use top/left positioning for precise alignment (bottom doesn't work
-    // because container heights differ between compact/expanded modes)
-    if (this.lastDotPosition && position !== 'bottom-center') {
-      const isRight = position.endsWith('right');
-
-      if (isRight) {
-        // For right-aligned, fall back to default
-        const isTop = position.startsWith('top');
-        posStyle = isTop ? { top: '20px', right: '16px' } : { bottom: '20px', right: '16px' };
-      } else {
-        // Use top positioning for precise dot alignment
-        posStyle = {
-          top: `${this.lastDotPosition.top - DOT_OFFSET_TOP}px`,
-          left: `${this.lastDotPosition.left - DOT_OFFSET_LEFT}px`,
-        };
-      }
-      // Clear the position after using it
-      this.lastDotPosition = null;
-    } else {
-      const positionStyles: Record<
-        string,
-        { bottom?: string; left?: string; top?: string; right?: string; transform?: string }
-      > = {
-        'bottom-left': { bottom: '20px', left: '80px' },
-        'bottom-right': { bottom: '20px', right: '16px' },
-        'top-left': { top: '20px', left: '80px' },
-        'top-right': { top: '20px', right: '16px' },
-        'bottom-center': { bottom: '12px', left: '50%', transform: 'translateX(-50%)' },
-      };
-      posStyle = positionStyles[position] ?? positionStyles['bottom-left'];
-    }
+    const posStyle = positionStyles[position] ?? positionStyles['bottom-left'];
 
     const wrapper = this.container;
 
@@ -3688,17 +3641,33 @@ export class GlobalDevBar {
   /** Position tooltip above the anchor element, adjusting for screen edges */
   private positionTooltip(tooltip: HTMLElement, anchor: HTMLElement): void {
     const rect = anchor.getBoundingClientRect();
-    tooltip.style.left = `${rect.left}px`;
+    const anchorCenterX = rect.left + rect.width / 2;
+    const isRightSide = anchorCenterX > window.innerWidth / 2;
+
     tooltip.style.bottom = `${window.innerHeight - rect.top + 8}px`;
 
     document.body.appendChild(tooltip);
 
-    // Adjust if off-screen
     const tooltipRect = tooltip.getBoundingClientRect();
-    if (tooltipRect.right > window.innerWidth - 10) {
-      tooltip.style.left = `${window.innerWidth - tooltipRect.width - 10}px`;
+
+    if (isRightSide) {
+      // Right-align tooltip with anchor (tooltip extends leftward)
+      const rightAlignedLeft = rect.right - tooltipRect.width;
+      tooltip.style.left = `${Math.max(10, rightAlignedLeft)}px`;
+    } else {
+      // Left-align tooltip with anchor (tooltip extends rightward)
+      tooltip.style.left = `${rect.left}px`;
+
+      // Adjust if off-screen right
+      const newTooltipRect = tooltip.getBoundingClientRect();
+      if (newTooltipRect.right > window.innerWidth - 10) {
+        tooltip.style.left = `${window.innerWidth - tooltipRect.width - 10}px`;
+      }
     }
-    if (tooltipRect.left < 10) {
+
+    // Final check: ensure not off-screen left
+    const finalRect = tooltip.getBoundingClientRect();
+    if (finalRect.left < 10) {
       tooltip.style.left = '10px';
     }
   }
