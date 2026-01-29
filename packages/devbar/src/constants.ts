@@ -559,13 +559,21 @@ export const TOOLTIP_STYLES = `
 }
 /* BASE only (< 640px): fit content, centered horizontally */
 @media (max-width: 639px) {
-  [data-devbar] {
+  /* Expanded state: center and constrain width */
+  [data-devbar]:not(.devbar-collapse) {
     width: auto !important;
     min-width: auto !important;
     max-width: calc(100vw - 32px) !important;
     left: 50% !important;
     right: auto !important;
     transform: translateX(-50%) !important;
+  }
+  /* Collapsed state: preserve circle shape, center horizontally */
+  [data-devbar].devbar-collapse {
+    left: 50% !important;
+    right: auto !important;
+    transform: translateX(-50%) !important;
+    bottom: 20px !important;
   }
   .devbar-main {
     flex-wrap: wrap;
