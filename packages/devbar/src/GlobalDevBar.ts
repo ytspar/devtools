@@ -3147,11 +3147,15 @@ export class GlobalDevBar {
       const breakpointData = TAILWIND_BREAKPOINTS[bp];
 
       const bpSpan = document.createElement('span');
-      bpSpan.className = this.tooltipClass('left', 'devbar-item');
+      bpSpan.className = 'devbar-item';
       Object.assign(bpSpan.style, { opacity: '0.9', cursor: 'default' });
-      bpSpan.setAttribute(
-        'data-tooltip',
-        `Tailwind Breakpoint: ${bp}\n${breakpointData?.label || ''}\n\nViewport: ${this.breakpointInfo.dimensions}\n\nBreakpoints:\nbase: <640px | sm: >=640px\nmd: >=768px | lg: >=1024px\nxl: >=1280px | 2xl: >=1536px`
+
+      // Use HTML tooltip for breakpoint info
+      this.attachBreakpointTooltip(
+        bpSpan,
+        bp,
+        this.breakpointInfo.dimensions,
+        breakpointData?.label || ''
       );
 
       let bpText: string = bp;
@@ -3182,7 +3186,8 @@ export class GlobalDevBar {
         fcpSpan.textContent = `FCP ${this.perfStats.fcp}`;
         this.attachMetricTooltip(
           fcpSpan,
-          'First Contentful Paint (FCP): Time until first text/image renders.',
+          'First Contentful Paint (FCP)',
+          'Time until the first text or image renders on screen.',
           { good: '<1.8s', needsWork: '1.8-3s', poor: '>3s' }
         );
         infoSection.appendChild(fcpSpan);
@@ -3196,7 +3201,8 @@ export class GlobalDevBar {
         lcpSpan.textContent = `LCP ${this.perfStats.lcp}`;
         this.attachMetricTooltip(
           lcpSpan,
-          'Largest Contentful Paint (LCP): Time until largest visible element renders.',
+          'Largest Contentful Paint (LCP)',
+          'Time until the largest visible element renders on screen.',
           { good: '<2.5s', needsWork: '2.5-4s', poor: '>4s' }
         );
         infoSection.appendChild(lcpSpan);
@@ -3210,7 +3216,8 @@ export class GlobalDevBar {
         clsSpan.textContent = `CLS ${this.perfStats.cls}`;
         this.attachMetricTooltip(
           clsSpan,
-          'Cumulative Layout Shift (CLS): Visual stability score. Higher values mean more unexpected layout shifts.',
+          'Cumulative Layout Shift (CLS)',
+          'Visual stability score. Higher values mean more unexpected layout shifts.',
           { good: '<0.1', needsWork: '0.1-0.25', poor: '>0.25' }
         );
         infoSection.appendChild(clsSpan);
@@ -3224,7 +3231,8 @@ export class GlobalDevBar {
         inpSpan.textContent = `INP ${this.perfStats.inp}`;
         this.attachMetricTooltip(
           inpSpan,
-          'Interaction to Next Paint (INP): Responsiveness to user input. Measures the longest interaction delay.',
+          'Interaction to Next Paint (INP)',
+          'Responsiveness to user input. Measures the longest interaction delay.',
           { good: '<200ms', needsWork: '200-500ms', poor: '>500ms' }
         );
         infoSection.appendChild(inpSpan);
@@ -3233,11 +3241,12 @@ export class GlobalDevBar {
       if (showMetrics.pageSize) {
         addSeparator();
         const sizeSpan = document.createElement('span');
-        sizeSpan.className = this.tooltipClass('left', 'devbar-item');
+        sizeSpan.className = 'devbar-item';
         Object.assign(sizeSpan.style, { opacity: '0.7', cursor: 'default' });
-        sizeSpan.setAttribute(
-          'data-tooltip',
-          'Total page size (compressed/transferred).\nIncludes HTML, CSS, JS, images, and other resources.'
+        this.attachInfoTooltip(
+          sizeSpan,
+          'Total Page Size',
+          'Compressed/transferred size including HTML, CSS, JS, images, and other resources.'
         );
         sizeSpan.textContent = this.perfStats.totalSize;
         infoSection.appendChild(sizeSpan);
@@ -3333,116 +3342,161 @@ export class GlobalDevBar {
     }
   }
 
-  /**
-   * Attach an HTML tooltip with colored threshold labels to a metric element
-   */
-  private attachMetricTooltip(
+  // ============================================================================
+  // Tooltip Helpers (DRY system for HTML tooltips)
+  // ============================================================================
+
+  /** Base styles for tooltip containers */
+  private readonly TOOLTIP_BASE_STYLES = {
+    position: 'fixed',
+    zIndex: '10004',
+    backgroundColor: 'rgba(17, 24, 39, 0.98)',
+    border: `1px solid ${COLORS.border}`,
+    borderRadius: '6px',
+    padding: '10px 12px',
+    fontSize: '0.6875rem',
+    fontFamily: FONT_MONO,
+    maxWidth: '280px',
+    boxShadow: '0 4px 12px rgba(0, 0, 0, 0.4)',
+    pointerEvents: 'none',
+  } as const;
+
+  /** Create a tooltip container element */
+  private createTooltipContainer(): HTMLDivElement {
+    const tooltip = document.createElement('div');
+    tooltip.setAttribute('data-devbar', 'true');
+    Object.assign(tooltip.style, this.TOOLTIP_BASE_STYLES);
+    return tooltip;
+  }
+
+  /** Add a bold title to tooltip (metric name, feature name, etc.) */
+  private addTooltipTitle(container: HTMLElement, title: string): void {
+    const titleEl = document.createElement('div');
+    const accentColor = this.settingsManager.get('accentColor') || COLORS.primary;
+    Object.assign(titleEl.style, {
+      color: accentColor,
+      fontWeight: '600',
+      marginBottom: '4px',
+    });
+    titleEl.textContent = title;
+    container.appendChild(titleEl);
+  }
+
+  /** Add a description paragraph to tooltip */
+  private addTooltipDescription(container: HTMLElement, description: string): void {
+    const descEl = document.createElement('div');
+    Object.assign(descEl.style, {
+      color: COLORS.text,
+      marginBottom: '10px',
+      lineHeight: '1.4',
+    });
+    descEl.textContent = description;
+    container.appendChild(descEl);
+  }
+
+  /** Add a muted uppercase section header to tooltip */
+  private addTooltipSectionHeader(container: HTMLElement, header: string): void {
+    const headerEl = document.createElement('div');
+    Object.assign(headerEl.style, {
+      color: COLORS.textMuted,
+      fontSize: '0.625rem',
+      textTransform: 'uppercase',
+      letterSpacing: '0.05em',
+      marginBottom: '6px',
+    });
+    headerEl.textContent = header;
+    container.appendChild(headerEl);
+  }
+
+  /** Add a colored row with dot + label + value (for thresholds) */
+  private addTooltipColoredRow(
+    container: HTMLElement,
+    label: string,
+    value: string,
+    color: string,
+    labelWidth = '70px'
+  ): void {
+    const row = document.createElement('div');
+    Object.assign(row.style, { display: 'flex', alignItems: 'center', gap: '8px' });
+
+    const dot = document.createElement('span');
+    Object.assign(dot.style, {
+      width: '6px',
+      height: '6px',
+      borderRadius: '50%',
+      backgroundColor: color,
+      flexShrink: '0',
+    });
+    row.appendChild(dot);
+
+    const labelSpan = document.createElement('span');
+    Object.assign(labelSpan.style, {
+      color,
+      fontWeight: '500',
+      minWidth: labelWidth,
+    });
+    labelSpan.textContent = label;
+    row.appendChild(labelSpan);
+
+    const valueSpan = document.createElement('span');
+    Object.assign(valueSpan.style, { color: COLORS.textMuted });
+    valueSpan.textContent = value;
+    row.appendChild(valueSpan);
+
+    container.appendChild(row);
+  }
+
+  /** Add an info row with label + value (for breakpoint details) */
+  private addTooltipInfoRow(container: HTMLElement, label: string, value: string): void {
+    const row = document.createElement('div');
+    Object.assign(row.style, {
+      display: 'flex',
+      gap: '8px',
+      lineHeight: '1.4',
+    });
+
+    const labelSpan = document.createElement('span');
+    Object.assign(labelSpan.style, { color: COLORS.textMuted });
+    labelSpan.textContent = label;
+    row.appendChild(labelSpan);
+
+    const valueSpan = document.createElement('span');
+    Object.assign(valueSpan.style, { color: COLORS.text });
+    valueSpan.textContent = value;
+    row.appendChild(valueSpan);
+
+    container.appendChild(row);
+  }
+
+  /** Position tooltip above the anchor element, adjusting for screen edges */
+  private positionTooltip(tooltip: HTMLElement, anchor: HTMLElement): void {
+    const rect = anchor.getBoundingClientRect();
+    tooltip.style.left = `${rect.left}px`;
+    tooltip.style.bottom = `${window.innerHeight - rect.top + 8}px`;
+
+    document.body.appendChild(tooltip);
+
+    // Adjust if off-screen
+    const tooltipRect = tooltip.getBoundingClientRect();
+    if (tooltipRect.right > window.innerWidth - 10) {
+      tooltip.style.left = `${window.innerWidth - tooltipRect.width - 10}px`;
+    }
+    if (tooltipRect.left < 10) {
+      tooltip.style.left = '10px';
+    }
+  }
+
+  /** Attach an HTML tooltip to an element with custom content builder */
+  private attachHtmlTooltip(
     element: HTMLElement,
-    description: string,
-    thresholds: { good: string; needsWork: string; poor: string }
+    buildContent: (tooltip: HTMLDivElement) => void
   ): void {
     let tooltipEl: HTMLDivElement | null = null;
 
     element.onmouseenter = () => {
-      tooltipEl = document.createElement('div');
-      tooltipEl.setAttribute('data-devbar', 'true');
-
-      Object.assign(tooltipEl.style, {
-        position: 'fixed',
-        zIndex: '10004',
-        backgroundColor: 'rgba(17, 24, 39, 0.98)',
-        border: `1px solid ${COLORS.border}`,
-        borderRadius: '6px',
-        padding: '10px 12px',
-        fontSize: '0.6875rem',
-        fontFamily: FONT_MONO,
-        maxWidth: '280px',
-        boxShadow: '0 4px 12px rgba(0, 0, 0, 0.4)',
-        pointerEvents: 'none',
-      });
-
-      // Description
-      const descEl = document.createElement('div');
-      Object.assign(descEl.style, {
-        color: COLORS.text,
-        marginBottom: '10px',
-        lineHeight: '1.4',
-      });
-      descEl.textContent = description;
-      tooltipEl.appendChild(descEl);
-
-      // Thresholds header
-      const thresholdsHeader = document.createElement('div');
-      Object.assign(thresholdsHeader.style, {
-        color: COLORS.textMuted,
-        fontSize: '0.625rem',
-        textTransform: 'uppercase',
-        letterSpacing: '0.05em',
-        marginBottom: '6px',
-      });
-      thresholdsHeader.textContent = 'Thresholds';
-      tooltipEl.appendChild(thresholdsHeader);
-
-      // Thresholds with colors
-      const thresholdsEl = document.createElement('div');
-      Object.assign(thresholdsEl.style, {
-        display: 'flex',
-        flexDirection: 'column',
-        gap: '4px',
-      });
-
-      const addThreshold = (label: string, value: string, color: string) => {
-        const row = document.createElement('div');
-        Object.assign(row.style, { display: 'flex', alignItems: 'center', gap: '8px' });
-
-        const dot = document.createElement('span');
-        Object.assign(dot.style, {
-          width: '6px',
-          height: '6px',
-          borderRadius: '50%',
-          backgroundColor: color,
-          flexShrink: '0',
-        });
-        row.appendChild(dot);
-
-        const labelSpan = document.createElement('span');
-        Object.assign(labelSpan.style, {
-          color,
-          fontWeight: '500',
-          minWidth: '70px',
-        });
-        labelSpan.textContent = label;
-        row.appendChild(labelSpan);
-
-        const valueSpan = document.createElement('span');
-        Object.assign(valueSpan.style, { color: COLORS.textMuted });
-        valueSpan.textContent = value;
-        row.appendChild(valueSpan);
-
-        thresholdsEl.appendChild(row);
-      };
-
-      addThreshold('Good', thresholds.good, COLORS.primary);
-      addThreshold('Needs work', thresholds.needsWork, COLORS.warning);
-      addThreshold('Poor', thresholds.poor, COLORS.error);
-
-      tooltipEl.appendChild(thresholdsEl);
-
-      // Position tooltip above element
-      const rect = element.getBoundingClientRect();
-      tooltipEl.style.left = `${rect.left}px`;
-      tooltipEl.style.bottom = `${window.innerHeight - rect.top + 8}px`;
-
-      document.body.appendChild(tooltipEl);
-
-      // Adjust if off-screen
-      const tooltipRect = tooltipEl.getBoundingClientRect();
-      if (tooltipRect.right > window.innerWidth - 10) {
-        tooltipEl.style.left = `${window.innerWidth - tooltipRect.width - 10}px`;
-      }
-      if (tooltipRect.left < 10) {
-        tooltipEl.style.left = '10px';
-      }
+      tooltipEl = this.createTooltipContainer();
+      buildContent(tooltipEl);
+      this.positionTooltip(tooltipEl, element);
     };
 
     element.onmouseleave = () => {
@@ -3451,6 +3505,121 @@ export class GlobalDevBar {
         tooltipEl = null;
       }
     };
+  }
+
+  // ============================================================================
+  // Tooltip Attachment Methods (specific tooltip types)
+  // ============================================================================
+
+  /** Attach a metric tooltip with title, description, and colored thresholds */
+  private attachMetricTooltip(
+    element: HTMLElement,
+    title: string,
+    description: string,
+    thresholds: { good: string; needsWork: string; poor: string }
+  ): void {
+    this.attachHtmlTooltip(element, (tooltip) => {
+      this.addTooltipTitle(tooltip, title);
+      this.addTooltipDescription(tooltip, description);
+      this.addTooltipSectionHeader(tooltip, 'Thresholds');
+
+      const thresholdsContainer = document.createElement('div');
+      Object.assign(thresholdsContainer.style, {
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '4px',
+      });
+
+      this.addTooltipColoredRow(thresholdsContainer, 'Good', thresholds.good, COLORS.primary);
+      this.addTooltipColoredRow(
+        thresholdsContainer,
+        'Needs work',
+        thresholds.needsWork,
+        COLORS.warning
+      );
+      this.addTooltipColoredRow(thresholdsContainer, 'Poor', thresholds.poor, COLORS.error);
+
+      tooltip.appendChild(thresholdsContainer);
+    });
+  }
+
+  /** Attach a breakpoint tooltip showing current breakpoint and all breakpoint ranges */
+  private attachBreakpointTooltip(
+    element: HTMLElement,
+    breakpoint: string,
+    dimensions: string,
+    breakpointLabel: string
+  ): void {
+    this.attachHtmlTooltip(element, (tooltip) => {
+      this.addTooltipTitle(tooltip, 'Tailwind Breakpoint');
+
+      // Current breakpoint info
+      const currentSection = document.createElement('div');
+      Object.assign(currentSection.style, { marginBottom: '10px' });
+      this.addTooltipInfoRow(currentSection, 'Current:', `${breakpoint} (${breakpointLabel})`);
+      this.addTooltipInfoRow(currentSection, 'Viewport:', dimensions);
+      tooltip.appendChild(currentSection);
+
+      // Breakpoints reference
+      this.addTooltipSectionHeader(tooltip, 'Breakpoints');
+
+      const bpContainer = document.createElement('div');
+      Object.assign(bpContainer.style, {
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '2px',
+        fontSize: '0.625rem',
+      });
+
+      const breakpoints = [
+        { name: 'base', range: '<640px' },
+        { name: 'sm', range: '≥640px' },
+        { name: 'md', range: '≥768px' },
+        { name: 'lg', range: '≥1024px' },
+        { name: 'xl', range: '≥1280px' },
+        { name: '2xl', range: '≥1536px' },
+      ];
+
+      for (const bp of breakpoints) {
+        const row = document.createElement('div');
+        Object.assign(row.style, { display: 'flex', gap: '8px' });
+
+        const nameSpan = document.createElement('span');
+        Object.assign(nameSpan.style, {
+          color: bp.name === breakpoint ? COLORS.primary : COLORS.textMuted,
+          fontWeight: bp.name === breakpoint ? '600' : '400',
+          minWidth: '32px',
+        });
+        nameSpan.textContent = bp.name;
+        row.appendChild(nameSpan);
+
+        const rangeSpan = document.createElement('span');
+        Object.assign(rangeSpan.style, {
+          color: bp.name === breakpoint ? COLORS.text : COLORS.textMuted,
+        });
+        rangeSpan.textContent = bp.range;
+        row.appendChild(rangeSpan);
+
+        bpContainer.appendChild(row);
+      }
+
+      tooltip.appendChild(bpContainer);
+    });
+  }
+
+  /** Attach a simple info tooltip with title and description */
+  private attachInfoTooltip(element: HTMLElement, title: string, description: string): void {
+    this.attachHtmlTooltip(element, (tooltip) => {
+      this.addTooltipTitle(tooltip, title);
+
+      const descEl = document.createElement('div');
+      Object.assign(descEl.style, {
+        color: COLORS.text,
+        lineHeight: '1.4',
+      });
+      descEl.textContent = description;
+      tooltip.appendChild(descEl);
+    });
   }
 
   /**
@@ -3502,6 +3671,9 @@ export class GlobalDevBar {
     btn.className = this.tooltipClass('right');
 
     const hasSuccessState = this.copiedToClipboard || this.copiedPath || this.lastScreenshot;
+    const isDisabled = this.capturing;
+    // Grey out when not connected (save won't work, but clipboard still does)
+    const isGreyedOut = !this.sweetlinkConnected && !hasSuccessState;
 
     const tooltip = this.getScreenshotTooltip();
     btn.setAttribute('data-tooltip', tooltip);
@@ -3520,12 +3692,12 @@ export class GlobalDevBar {
       borderColor: hasSuccessState ? accentColor : `${accentColor}80`,
       backgroundColor: hasSuccessState ? `${accentColor}33` : 'transparent',
       color: hasSuccessState ? accentColor : `${accentColor}99`,
-      cursor: !this.capturing ? 'pointer' : 'not-allowed',
-      opacity: '1',
+      cursor: !isDisabled ? 'pointer' : 'not-allowed',
+      opacity: isGreyedOut ? '0.4' : '1',
       transition: 'all 150ms',
     });
 
-    btn.disabled = this.capturing;
+    btn.disabled = isDisabled;
     btn.onclick = (e) => {
       // If we have a saved screenshot path, clicking copies the path
       if (this.lastScreenshot && !e.shiftKey) {
@@ -3590,10 +3762,11 @@ export class GlobalDevBar {
       return `Screenshot saved!\n${this.lastScreenshot}\n\nClick to copy path`;
     }
 
-    const baseTooltip = `Screenshot\n\nClick: Save to file\nShift+Click: Copy to clipboard\n\nKeyboard:\nCmd/Ctrl+Shift+S: Save\nCmd/Ctrl+Shift+C: Copy`;
-    return this.sweetlinkConnected
-      ? baseTooltip
-      : `${baseTooltip}\n\nWarning: Sweetlink not connected`;
+    if (!this.sweetlinkConnected) {
+      return `Screenshot (Disconnected)\n\nShift+Click: Copy to clipboard\n\n⚠ Sweetlink not connected\nSave to file unavailable`;
+    }
+
+    return `Screenshot\n\nClick: Save to file\nShift+Click: Copy to clipboard\n\nKeyboard:\nCmd/Ctrl+Shift+S: Save\nCmd/Ctrl+Shift+C: Copy`;
   }
 
   /**
@@ -3665,9 +3838,14 @@ export class GlobalDevBar {
     btn.type = 'button';
     btn.className = this.tooltipClass('right');
 
-    const tooltip = this.lastOutline
-      ? `Outline saved to:\n${this.lastOutline}`
-      : `Document Outline\n\nView page heading structure and\nsave as markdown.`;
+    let tooltip: string;
+    if (this.lastOutline) {
+      tooltip = `Outline saved to:\n${this.lastOutline}`;
+    } else if (!this.sweetlinkConnected) {
+      tooltip = `Document Outline\n\nView page heading structure.\n\n⚠ Sweetlink not connected\nSave to file unavailable`;
+    } else {
+      tooltip = `Document Outline\n\nView page heading structure and\nsave as markdown.`;
+    }
     btn.setAttribute('data-tooltip', tooltip);
 
     const isActive = this.showOutlineModal || !!this.lastOutline;
@@ -3691,9 +3869,14 @@ export class GlobalDevBar {
     btn.type = 'button';
     btn.className = this.tooltipClass('right');
 
-    const tooltip = this.lastSchema
-      ? `Schema saved to:\n${this.lastSchema}`
-      : `Page Schema\n\nView JSON-LD, Open Graph, and\nother structured data.`;
+    let tooltip: string;
+    if (this.lastSchema) {
+      tooltip = `Schema saved to:\n${this.lastSchema}`;
+    } else if (!this.sweetlinkConnected) {
+      tooltip = `Page Schema\n\nView JSON-LD, Open Graph, and\nother structured data.\n\n⚠ Sweetlink not connected\nSave to file unavailable`;
+    } else {
+      tooltip = `Page Schema\n\nView JSON-LD, Open Graph, and\nother structured data.`;
+    }
     btn.setAttribute('data-tooltip', tooltip);
 
     const isActive = this.showSchemaModal || !!this.lastSchema;
