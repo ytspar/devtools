@@ -51,11 +51,7 @@ export function createLandingHero(): HTMLElement {
 
   // Tagline
   hero.appendChild(
-    createTextElement(
-      'p',
-      'landing-tagline',
-      'Development toolbar and AI debugging toolkit'
-    )
+    createTextElement('p', 'landing-tagline', 'Development toolbar and AI debugging toolkit')
   );
 
   // Badges
@@ -113,39 +109,262 @@ export function createLandingHero(): HTMLElement {
 }
 
 /**
- * Create the features overview section
+ * Syntax highlighting tokens for code blocks
+ */
+interface Token {
+  type: 'keyword' | 'string' | 'comment' | 'function' | 'property' | 'operator' | 'number' | 'text';
+  value: string;
+}
+
+/**
+ * Simple syntax highlighter for TypeScript/JavaScript
+ */
+function highlightCode(code: string, language: 'typescript' | 'bash' = 'typescript'): HTMLElement {
+  const pre = document.createElement('pre');
+  pre.className = 'code-block';
+  const codeEl = document.createElement('code');
+  codeEl.className = `language-${language}`;
+
+  if (language === 'bash') {
+    // Simple bash highlighting
+    const lines = code.split('\n');
+    for (const line of lines) {
+      if (line.trim().startsWith('#')) {
+        // Comment
+        const span = document.createElement('span');
+        span.className = 'token-comment';
+        span.textContent = line;
+        codeEl.appendChild(span);
+      } else {
+        // Highlight command and flags
+        const parts = line.split(/(\s+)/);
+        let isFirst = true;
+        for (const part of parts) {
+          if (part.trim() === '') {
+            codeEl.appendChild(document.createTextNode(part));
+            continue;
+          }
+          const span = document.createElement('span');
+          if (isFirst && part.trim()) {
+            span.className = 'token-function';
+            isFirst = false;
+          } else if (part.startsWith('--') || part.startsWith('-')) {
+            span.className = 'token-property';
+          } else if (part.startsWith('"') || part.startsWith("'")) {
+            span.className = 'token-string';
+          } else {
+            span.className = 'token-text';
+          }
+          span.textContent = part;
+          codeEl.appendChild(span);
+        }
+      }
+      codeEl.appendChild(document.createTextNode('\n'));
+    }
+  } else {
+    // TypeScript highlighting
+    const tokens = tokenizeTS(code);
+    for (const token of tokens) {
+      const span = document.createElement('span');
+      span.className = `token-${token.type}`;
+      span.textContent = token.value;
+      codeEl.appendChild(span);
+    }
+  }
+
+  pre.appendChild(codeEl);
+  return pre;
+}
+
+/**
+ * Tokenize TypeScript code for syntax highlighting
+ */
+function tokenizeTS(code: string): Token[] {
+  const tokens: Token[] = [];
+  const keywords = [
+    'import',
+    'export',
+    'from',
+    'const',
+    'let',
+    'var',
+    'if',
+    'else',
+    'return',
+    'function',
+    'default',
+    'async',
+    'await',
+  ];
+
+  let i = 0;
+  while (i < code.length) {
+    // Comments
+    if (code.slice(i, i + 2) === '//') {
+      let end = code.indexOf('\n', i);
+      if (end === -1) end = code.length;
+      tokens.push({ type: 'comment', value: code.slice(i, end) });
+      i = end;
+      continue;
+    }
+
+    // Strings
+    if (code[i] === "'" || code[i] === '"' || code[i] === '`') {
+      const quote = code[i];
+      let j = i + 1;
+      while (j < code.length && code[j] !== quote) {
+        if (code[j] === '\\') j++;
+        j++;
+      }
+      tokens.push({ type: 'string', value: code.slice(i, j + 1) });
+      i = j + 1;
+      continue;
+    }
+
+    // Numbers
+    if (/\d/.test(code[i])) {
+      let j = i;
+      while (j < code.length && /[\d.]/.test(code[j])) j++;
+      tokens.push({ type: 'number', value: code.slice(i, j) });
+      i = j;
+      continue;
+    }
+
+    // Words (keywords, identifiers)
+    if (/[a-zA-Z_$]/.test(code[i])) {
+      let j = i;
+      while (j < code.length && /[a-zA-Z0-9_$]/.test(code[j])) j++;
+      const word = code.slice(i, j);
+
+      // Check if followed by ( for function calls
+      let nextNonSpace = j;
+      while (nextNonSpace < code.length && code[nextNonSpace] === ' ') nextNonSpace++;
+
+      if (keywords.includes(word)) {
+        tokens.push({ type: 'keyword', value: word });
+      } else if (code[nextNonSpace] === '(') {
+        tokens.push({ type: 'function', value: word });
+      } else if (code[i - 1] === '.') {
+        tokens.push({ type: 'property', value: word });
+      } else {
+        tokens.push({ type: 'text', value: word });
+      }
+      i = j;
+      continue;
+    }
+
+    // Operators
+    if (/[{}()[\];:,.<>=+\-*/&|!?]/.test(code[i])) {
+      tokens.push({ type: 'operator', value: code[i] });
+      i++;
+      continue;
+    }
+
+    // Whitespace and other
+    tokens.push({ type: 'text', value: code[i] });
+    i++;
+  }
+
+  return tokens;
+}
+
+/**
+ * Create the features overview section - DevBar toolbar features
  */
 export function createFeaturesSection(): HTMLElement {
   const section = document.createElement('section');
   section.className = 'landing-features';
 
-  section.appendChild(createTextElement('h2', 'section-heading', 'Features'));
+  section.appendChild(createTextElement('h2', 'section-heading', 'DevBar Toolbar'));
 
   const features = [
     {
-      title: 'Screenshots',
+      title: 'Breakpoint Indicator',
       description:
-        'Capture full page or element screenshots. Token-efficient (~1000 tokens vs ~5000).',
+        'Shows current Tailwind CSS breakpoint (sm, md, lg, xl, 2xl) with viewport dimensions.',
     },
     {
-      title: 'DOM Queries',
-      description: 'Query and inspect DOM elements with CSS selectors from CLI.',
+      title: 'Core Web Vitals',
+      description:
+        'Real-time FCP, LCP, CLS, and INP metrics. Monitor performance without opening DevTools.',
     },
     {
-      title: 'Console Logs',
-      description: 'Capture and filter browser console output with deduplication.',
+      title: 'Console Badges',
+      description:
+        'Visual error and warning counts. Quickly spot issues without checking the console.',
     },
     {
-      title: 'JS Execution',
-      description: 'Run arbitrary JavaScript in browser context for debugging.',
+      title: 'One-Click Screenshots',
+      description:
+        'Capture full page or element screenshots. Copies to clipboard or saves to disk.',
     },
     {
-      title: 'Click Elements',
-      description: 'Click elements by selector, text content, or both.',
+      title: 'Custom Controls',
+      description:
+        'Register app-specific debug buttons. Add "Clear Cache", "Reset State", or any action.',
     },
     {
-      title: 'Auto Reconnect',
-      description: 'Browser client automatically reconnects on disconnect.',
+      title: 'Theme System',
+      description: 'Dark/light modes with system preference detection. Multiple accent colors.',
+    },
+  ];
+
+  const grid = document.createElement('div');
+  grid.className = 'features-grid';
+
+  for (const feature of features) {
+    const card = document.createElement('div');
+    card.className = 'feature-card';
+
+    card.appendChild(createTextElement('h3', 'feature-title', feature.title));
+    card.appendChild(createTextElement('p', 'feature-description', feature.description));
+
+    grid.appendChild(card);
+  }
+
+  section.appendChild(grid);
+  return section;
+}
+
+/**
+ * Create the Sweetlink features section - AI agent toolkit
+ */
+export function createSweetlinkSection(): HTMLElement {
+  const section = document.createElement('section');
+  section.className = 'landing-features sweetlink-features';
+
+  section.appendChild(createTextElement('h2', 'section-heading', 'Sweetlink AI Bridge'));
+
+  const features = [
+    {
+      title: 'Token-Efficient Screenshots',
+      description:
+        'Compressed images via WebSocket. ~1,000 tokens vs ~15,000 for CDP. Saves context window.',
+    },
+    {
+      title: 'Console Log Streaming',
+      description:
+        'Real-time log capture with filtering. Errors, warnings, and info with timestamps.',
+    },
+    {
+      title: 'HMR Auto-Capture',
+      description:
+        'Automatic screenshots on hot reload. AI sees changes immediately after code edits.',
+    },
+    {
+      title: 'Design Review',
+      description:
+        'Claude Vision integration for automated UI analysis. Catches visual bugs and accessibility issues.',
+    },
+    {
+      title: 'CLI for AI Agents',
+      description:
+        'Commands that AI assistants can run: screenshot, logs, query, refresh. Built for automation.',
+    },
+    {
+      title: 'WebSocket Bridge',
+      description:
+        'Real-time bidirectional communication. Auto-reconnect with exponential backoff.',
     },
   ];
 
@@ -178,20 +397,27 @@ export function createPackagesSection(): HTMLElement {
   const packages = [
     {
       name: '@ytspar/devbar',
-      description:
-        'Development toolbar with breakpoint indicator, performance stats, console badges, and screenshot capture.',
+      description: 'Compact development toolbar. Framework-agnostic vanilla JS.',
       features: [
-        'Tailwind breakpoint indicator',
-        'FCP/LCP metrics',
-        'Console error badges',
-        'One-click screenshots',
+        'Tailwind breakpoint + viewport size',
+        'Core Web Vitals (FCP, LCP, CLS, INP)',
+        'Console error/warning badges',
+        'Screenshot capture to clipboard',
+        'Extensible custom controls',
+        'Dark/light theme with accents',
       ],
     },
     {
       name: '@ytspar/sweetlink',
-      description:
-        'WebSocket bridge enabling AI agents to capture screenshots, query DOM, execute JavaScript, and monitor console logs.',
-      features: ['CLI commands', 'Vite plugin', 'Auto-start server', 'CDP support'],
+      description: 'WebSocket bridge for AI agent browser debugging.',
+      features: [
+        'Token-efficient screenshots (~1k tokens)',
+        'Console log capture + streaming',
+        'HMR auto-screenshot on code changes',
+        'Claude Vision design review',
+        'CLI commands for automation',
+        'Vite plugin for zero-config setup',
+      ],
     },
   ];
 
@@ -222,18 +448,7 @@ export function createPackagesSection(): HTMLElement {
 }
 
 /**
- * Create a code block element
- */
-function createCodeBlock(code: string): HTMLPreElement {
-  const pre = document.createElement('pre');
-  const codeEl = document.createElement('code');
-  codeEl.textContent = code;
-  pre.appendChild(codeEl);
-  return pre;
-}
-
-/**
- * Create the quick start section
+ * Create the quick start section with syntax-highlighted code
  */
 export function createQuickStartSection(): HTMLElement {
   const section = document.createElement('section');
@@ -244,43 +459,58 @@ export function createQuickStartSection(): HTMLElement {
   const steps = document.createElement('div');
   steps.className = 'quickstart-steps';
 
-  // Vite setup
+  // Step 1: Install
+  const installStep = document.createElement('div');
+  installStep.className = 'quickstart-step';
+  installStep.appendChild(createTextElement('h3', 'step-title', '1. Install'));
+  installStep.appendChild(highlightCode(`pnpm add @ytspar/devbar @ytspar/sweetlink`, 'bash'));
+  steps.appendChild(installStep);
+
+  // Step 2: Vite setup
   const viteStep = document.createElement('div');
   viteStep.className = 'quickstart-step';
-  viteStep.appendChild(createTextElement('h3', '', '1. Add Sweetlink Plugin (Vite)'));
+  viteStep.appendChild(createTextElement('h3', 'step-title', '2. Add Vite Plugin'));
   viteStep.appendChild(
-    createCodeBlock(`// vite.config.ts
-import { sweetlink } from '@ytspar/sweetlink/vite';
+    highlightCode(
+      `// vite.config.ts
+import { sweetlink } from '@ytspar/sweetlink/vite'
 
 export default defineConfig({
   plugins: [sweetlink()]
-});`)
+})`,
+      'typescript'
+    )
   );
   steps.appendChild(viteStep);
 
-  // DevBar setup
+  // Step 3: DevBar setup
   const devbarStep = document.createElement('div');
   devbarStep.className = 'quickstart-step';
-  devbarStep.appendChild(createTextElement('h3', '', '2. Initialize DevBar'));
+  devbarStep.appendChild(createTextElement('h3', 'step-title', '3. Initialize DevBar'));
   devbarStep.appendChild(
-    createCodeBlock(`// main.ts or App.tsx
-import { initGlobalDevBar } from '@ytspar/devbar';
+    highlightCode(
+      `// main.ts
+import { initGlobalDevBar } from '@ytspar/devbar'
 
 if (import.meta.env.DEV) {
-  initGlobalDevBar();
-}`)
+  initGlobalDevBar()
+}`,
+      'typescript'
+    )
   );
   steps.appendChild(devbarStep);
 
-  // CLI usage
+  // Step 4: CLI usage
   const cliStep = document.createElement('div');
   cliStep.className = 'quickstart-step';
-  cliStep.appendChild(createTextElement('h3', '', '3. Use CLI Commands'));
+  cliStep.appendChild(createTextElement('h3', 'step-title', '4. Use CLI'));
   cliStep.appendChild(
-    createCodeBlock(`pnpm sweetlink screenshot          # Full page screenshot
-pnpm sweetlink logs                 # Get console logs
-pnpm sweetlink query --selector h1  # Query DOM
-pnpm sweetlink click --text Submit  # Click element`)
+    highlightCode(
+      `pnpm sweetlink screenshot   # Capture page
+pnpm sweetlink logs         # Get console output
+pnpm sweetlink refresh      # Reload browser`,
+      'bash'
+    )
   );
   steps.appendChild(cliStep);
 

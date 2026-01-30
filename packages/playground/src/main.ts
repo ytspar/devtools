@@ -9,6 +9,7 @@ import {
   getEffectiveTheme,
   getStoredThemeMode,
   getTheme,
+  initGlobalDevBar,
   injectThemeCSS,
   STORAGE_KEYS,
 } from '@ytspar/devbar';
@@ -19,8 +20,8 @@ import {
   createLandingHero,
   createPackagesSection,
   createQuickStartSection,
+  createSweetlinkSection,
 } from './landing-content.js';
-import { initPlaygroundControls } from './playground-controls.js';
 
 /**
  * Apply the current theme to the playground
@@ -67,6 +68,7 @@ if (app) {
   // Landing sections
   app.appendChild(createLandingHero());
   app.appendChild(createFeaturesSection());
+  app.appendChild(createSweetlinkSection());
   app.appendChild(createPackagesSection());
   app.appendChild(createQuickStartSection());
   app.appendChild(createDemoSectionDivider());
@@ -75,8 +77,8 @@ if (app) {
   app.appendChild(createDemoContent());
 }
 
-// Initialize playground controls (includes DevBar initialization)
-initPlaygroundControls();
+// Initialize DevBar (use gear icon to access settings)
+initGlobalDevBar();
 
 // Log some sample messages for testing console capture
 console.log('[Playground] Application initialized');
