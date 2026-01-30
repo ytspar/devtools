@@ -109,11 +109,11 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/ytspar/devtools.git",
+    "url": "git+https://github.com/ytspar/devbar.git",
     "directory": "packages/sweetlink"
   },
   "bugs": {
-    "url": "https://github.com/ytspar/devtools/issues"
+    "url": "https://github.com/ytspar/devbar/issues"
   },
-  "homepage": "https://github.com/ytspar/devtools/tree/main/packages/sweetlink#readme"
+  "homepage": "https://github.com/ytspar/devbar/tree/main/packages/sweetlink#readme"
 }

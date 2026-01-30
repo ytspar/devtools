@@ -28,7 +28,7 @@ export default defineConfig({
   },
 
   // Build configuration for GitHub Pages
-  // Base URL is set via CLI: --base=/devtools/ for GitHub Pages
+  // Base URL is set via CLI: --base=/devbar/ for GitHub Pages
   build: {
     outDir: 'dist',
     sourcemap: true,

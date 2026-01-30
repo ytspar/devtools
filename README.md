@@ -23,8 +23,8 @@ Tools that enable AI agents (like Claude) to autonomously debug, test, and itera
 
 ```bash
 # Clone the repository
-git clone https://github.com/ytspar/devtools.git
-cd devtools
+git clone https://github.com/ytspar/devbar.git
+cd devbar
 
 # Install dependencies (pnpm handles workspace linking)
 pnpm install
@@ -421,7 +421,7 @@ describe('myFunction', () => {
 ### Package Structure
 
 ```
-devtools/
+devbar/
 ├── packages/
 │   ├── devbar/           # Development toolbar
 │   │   ├── src/

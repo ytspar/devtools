@@ -548,7 +548,7 @@ SWEETLINK_WS_PORT=9224 pnpm dev
 
 ## Contributing
 
-Contributions welcome! Please open an issue or PR at https://github.com/ytspar/devtools
+Contributions welcome! Please open an issue or PR at https://github.com/ytspar/devbar
 
 ## License
 

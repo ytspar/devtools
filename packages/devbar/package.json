@@ -6,13 +6,13 @@
   "description": "Development toolbar and utilities with Sweetlink integration - pure vanilla JS, no framework dependencies",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/ytspar/devtools.git",
+    "url": "git+https://github.com/ytspar/devbar.git",
     "directory": "packages/devbar"
   },
   "keywords": [
     "development",
     "debug",
-    "devtools",
+    "devbar",
     "sweetlink",
     "vanilla-js"
   ],

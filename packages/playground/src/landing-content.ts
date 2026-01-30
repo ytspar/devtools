@@ -77,9 +77,9 @@ export function createLandingHero(): HTMLElement {
   );
   badges.appendChild(
     createLink(
-      'https://github.com/ytspar/devtools',
+      'https://github.com/ytspar/devbar',
       createImage(
-        'https://img.shields.io/github/stars/ytspar/devtools?style=flat-square&color=10b981',
+        'https://img.shields.io/github/stars/ytspar/devbar?style=flat-square&color=10b981',
         'GitHub stars'
       )
     )

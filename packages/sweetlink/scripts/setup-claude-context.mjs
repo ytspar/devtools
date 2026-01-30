@@ -36,7 +36,7 @@ const filesToLink = [
 
 function setupSymlinks() {
   // Skip if running in the tools repo itself (during development)
-  if (projectRoot.includes('ytspar/devtools')) {
+  if (projectRoot.includes('ytspar/devbar')) {
     return;
   }
 

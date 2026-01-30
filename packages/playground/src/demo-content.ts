@@ -373,7 +373,7 @@ function createFooter(): HTMLElement {
   links.className = 'footer-links';
 
   const githubLink = document.createElement('a');
-  githubLink.href = 'https://github.com/ytspar/devtools';
+  githubLink.href = 'https://github.com/ytspar/devbar';
   githubLink.target = '_blank';
   githubLink.rel = 'noopener noreferrer';
   githubLink.textContent = 'GitHub';
