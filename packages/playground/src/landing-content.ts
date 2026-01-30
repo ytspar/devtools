@@ -46,14 +46,7 @@ export function createLandingHero(): HTMLElement {
   // Logo/Title
   const title = document.createElement('h1');
   title.className = 'landing-title';
-  const devSpan = document.createElement('span');
-  devSpan.className = 'title-dev';
-  devSpan.textContent = 'Dev';
-  const toolsSpan = document.createElement('span');
-  toolsSpan.className = 'title-tools';
-  toolsSpan.textContent = 'Tools';
-  title.appendChild(devSpan);
-  title.appendChild(toolsSpan);
+  title.textContent = 'devtools';
   hero.appendChild(title);
 
   // Tagline
@@ -130,33 +123,27 @@ export function createFeaturesSection(): HTMLElement {
 
   const features = [
     {
-      icon: '📸',
       title: 'Screenshots',
       description:
         'Capture full page or element screenshots. Token-efficient (~1000 tokens vs ~5000).',
     },
     {
-      icon: '🔍',
       title: 'DOM Queries',
       description: 'Query and inspect DOM elements with CSS selectors from CLI.',
     },
     {
-      icon: '📊',
       title: 'Console Logs',
       description: 'Capture and filter browser console output with deduplication.',
     },
     {
-      icon: '⚡',
       title: 'JS Execution',
       description: 'Run arbitrary JavaScript in browser context for debugging.',
     },
     {
-      icon: '🖱️',
       title: 'Click Elements',
       description: 'Click elements by selector, text content, or both.',
     },
     {
-      icon: '🔄',
       title: 'Auto Reconnect',
       description: 'Browser client automatically reconnects on disconnect.',
     },
@@ -168,11 +155,6 @@ export function createFeaturesSection(): HTMLElement {
   for (const feature of features) {
     const card = document.createElement('div');
     card.className = 'feature-card';
-
-    const icon = document.createElement('span');
-    icon.className = 'feature-icon';
-    icon.textContent = feature.icon;
-    card.appendChild(icon);
 
     card.appendChild(createTextElement('h3', 'feature-title', feature.title));
     card.appendChild(createTextElement('p', 'feature-description', feature.description));

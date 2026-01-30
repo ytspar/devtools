@@ -989,23 +989,16 @@ body.theme-light {
 }
 
 .landing-title {
-  font-size: 4rem;
+  font-size: 5rem;
   font-weight: var(--devbar-font-bold);
   margin-bottom: 1rem;
   letter-spacing: var(--devbar-tracking-tight);
-}
-
-.title-dev {
   color: var(--devbar-color-primary);
   text-shadow: 0 0 40px var(--devbar-color-primary-glow);
 }
 
-.title-tools {
-  color: var(--devbar-color-text);
-}
-
 .landing-tagline {
-  font-size: var(--devbar-text-xl);
+  font-size: var(--devbar-text-2xl);
   color: var(--devbar-color-text-secondary);
   margin-bottom: 2rem;
   font-weight: var(--devbar-font-normal);
@@ -1045,7 +1038,7 @@ body.theme-light {
 
 .landing-install code {
   font-family: var(--devbar-font-mono);
-  font-size: var(--devbar-text-base);
+  font-size: var(--devbar-text-lg);
   color: var(--devbar-color-primary);
 }
 
@@ -1071,11 +1064,11 @@ body.theme-light {
 
 /* Section Heading */
 .section-heading {
-  font-size: var(--devbar-text-2xl);
+  font-size: 2.5rem;
   font-weight: var(--devbar-font-semibold);
   color: var(--devbar-color-primary);
   text-align: center;
-  margin-bottom: 2rem;
+  margin-bottom: 2.5rem;
   text-transform: uppercase;
   letter-spacing: var(--devbar-tracking-wide);
 }
@@ -1108,21 +1101,17 @@ body.theme-light {
   box-shadow: 0 8px 30px var(--devbar-color-primary-glow);
 }
 
-.feature-icon {
-  font-size: 2.5rem;
-  display: block;
-  margin-bottom: 0.75rem;
-}
-
 .feature-title {
-  font-size: var(--devbar-text-lg);
+  font-size: var(--devbar-text-xl);
   font-weight: var(--devbar-font-semibold);
-  color: var(--devbar-color-text);
-  margin-bottom: 0.5rem;
+  color: var(--devbar-color-primary);
+  margin-bottom: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: var(--devbar-tracking-wide);
 }
 
 .feature-description {
-  font-size: var(--devbar-text-sm);
+  font-size: var(--devbar-text-base);
   color: var(--devbar-color-text-muted);
   line-height: var(--devbar-leading-relaxed);
 }
@@ -1154,17 +1143,17 @@ body.theme-light {
 }
 
 .package-name {
-  font-size: var(--devbar-text-lg);
+  font-size: var(--devbar-text-xl);
   font-weight: var(--devbar-font-semibold);
   color: var(--devbar-color-primary);
-  margin-bottom: 0.75rem;
+  margin-bottom: 1rem;
   font-family: var(--devbar-font-mono);
 }
 
 .package-description {
-  font-size: var(--devbar-text-sm);
+  font-size: var(--devbar-text-base);
   color: var(--devbar-color-text-secondary);
-  margin-bottom: 1rem;
+  margin-bottom: 1.25rem;
   line-height: var(--devbar-leading-relaxed);
 }
 
@@ -1172,14 +1161,14 @@ body.theme-light {
   list-style: none;
   display: flex;
   flex-wrap: wrap;
-  gap: 0.5rem;
+  gap: 0.625rem;
 }
 
 .package-features li {
-  font-size: var(--devbar-text-xs);
+  font-size: var(--devbar-text-sm);
   color: var(--devbar-color-text-muted);
   background: var(--devbar-color-bg-input);
-  padding: 0.25rem 0.625rem;
+  padding: 0.375rem 0.75rem;
   border-radius: 9999px;
   border: 1px solid var(--devbar-color-border-subtle);
 }
@@ -1205,7 +1194,7 @@ body.theme-light {
 }
 
 .quickstart-step h3 {
-  font-size: var(--devbar-text-base);
+  font-size: var(--devbar-text-lg);
   font-weight: var(--devbar-font-semibold);
   color: var(--devbar-color-text);
   margin-bottom: 1rem;
@@ -1215,13 +1204,13 @@ body.theme-light {
   background: var(--devbar-color-bg-input);
   border: 1px solid var(--devbar-color-border-subtle);
   border-radius: var(--devbar-radius-md);
-  padding: 1rem;
+  padding: 1.25rem;
   overflow-x: auto;
 }
 
 .quickstart-step code {
   font-family: var(--devbar-font-mono);
-  font-size: var(--devbar-text-sm);
+  font-size: var(--devbar-text-base);
   color: var(--devbar-color-text-secondary);
   line-height: var(--devbar-leading-relaxed);
 }
@@ -1243,7 +1232,7 @@ body.theme-light {
 }
 
 .divider-text {
-  font-size: var(--devbar-text-lg);
+  font-size: var(--devbar-text-xl);
   font-weight: var(--devbar-font-semibold);
   color: var(--devbar-color-primary);
   text-transform: uppercase;
@@ -1288,7 +1277,7 @@ body.theme-light {
 }
 
 /* Light Theme Landing Overrides */
-.theme-light .title-dev {
+.theme-light .landing-title {
   text-shadow: 0 0 30px rgba(4, 120, 87, 0.4);
 }
 
