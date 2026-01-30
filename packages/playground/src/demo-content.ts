@@ -89,32 +89,47 @@ function createConsoleTestSection(): HTMLElement {
   const buttonGroup = document.createElement('div');
   buttonGroup.className = 'button-group';
 
-  // Log button
-  const logBtn = createButton('Log Info', 'info', () => {
-    console.log('[Test] This is an info log message', { timestamp: Date.now() });
-  });
-  buttonGroup.appendChild(logBtn);
+  // Helper to log with timestamp
+  const logMessage = (level: 'log' | 'info' | 'warn' | 'error', message: string) => {
+    console[level](`[Test] ${message}`, { timestamp: Date.now() });
+  };
 
-  // Warning button
-  const warnBtn = createButton('Log Warning', 'warning', () => {
-    console.warn('[Test] This is a warning message - something might be wrong');
-  });
-  buttonGroup.appendChild(warnBtn);
+  // Console test buttons
+  const buttons: Array<{
+    label: string;
+    variant: 'info' | 'warning' | 'error' | 'secondary';
+    action: () => void;
+  }> = [
+    {
+      label: 'Log Info',
+      variant: 'info',
+      action: () => logMessage('info', 'This is an info message'),
+    },
+    {
+      label: 'Log Warning',
+      variant: 'warning',
+      action: () => logMessage('warn', 'This is a warning message'),
+    },
+    {
+      label: 'Log Error',
+      variant: 'error',
+      action: () => logMessage('error', 'This is an error message'),
+    },
+    {
+      label: 'Log Multiple',
+      variant: 'secondary',
+      action: () => {
+        logMessage('log', 'First log (debug)');
+        logMessage('info', 'Second log (info)');
+        logMessage('warn', 'Third log (warning)');
+        logMessage('error', 'Fourth log (error)');
+      },
+    },
+  ];
 
-  // Error button
-  const errorBtn = createButton('Log Error', 'error', () => {
-    console.error('[Test] This is an error message', new Error('Test error'));
-  });
-  buttonGroup.appendChild(errorBtn);
-
-  // Multiple logs button
-  const multiBtn = createButton('Log Multiple', 'secondary', () => {
-    console.log('[Test] First log');
-    console.info('[Test] Second log (info)');
-    console.warn('[Test] Third log (warning)');
-    console.error('[Test] Fourth log (error)');
-  });
-  buttonGroup.appendChild(multiBtn);
+  for (const { label, variant, action } of buttons) {
+    buttonGroup.appendChild(createButton(label, variant, action));
+  }
 
   section.appendChild(buttonGroup);
 

@@ -112,6 +112,7 @@ export const BUTTON_COLORS = {
   schema: PALETTE.amber,
   error: PALETTE.red,
   warning: PALETTE.amber,
+  info: PALETTE.blue,
 } as const;
 
 /** Category colors for outline display */

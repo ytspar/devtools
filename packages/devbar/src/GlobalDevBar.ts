@@ -112,11 +112,12 @@ const html2canvas = ((html2canvasModule as unknown as { default: Html2CanvasFunc
 // Early Console Capture (runs immediately on module load)
 // ============================================================================
 
-type LogChangeListener = (errorCount: number, warningCount: number) => void;
+type LogChangeListener = (errorCount: number, warningCount: number, infoCount: number) => void;
 
 interface EarlyConsoleCapture {
   errorCount: number;
   warningCount: number;
+  infoCount: number;
   logs: ConsoleLog[];
   originalConsole: {
     log: typeof console.log;
@@ -134,6 +135,7 @@ const earlyConsoleCapture: EarlyConsoleCapture = (() => {
   const ssrFallback: EarlyConsoleCapture = {
     errorCount: 0,
     warningCount: 0,
+    infoCount: 0,
     logs: [],
     originalConsole: null,
     isPatched: false,
@@ -147,10 +149,10 @@ const earlyConsoleCapture: EarlyConsoleCapture = (() => {
 
   const listeners: LogChangeListener[] = [];
 
-  const notifyListeners = (errorCount: number, warningCount: number) => {
+  const notifyListeners = (errorCount: number, warningCount: number, infoCount: number) => {
     for (const listener of listeners) {
       try {
-        listener(errorCount, warningCount);
+        listener(errorCount, warningCount, infoCount);
       } catch {
         // Ignore listener errors
       }
@@ -160,6 +162,7 @@ const earlyConsoleCapture: EarlyConsoleCapture = (() => {
   const capture: EarlyConsoleCapture = {
     errorCount: 0,
     warningCount: 0,
+    infoCount: 0,
     logs: [],
     originalConsole: {
       log: console.log,
@@ -194,17 +197,19 @@ const earlyConsoleCapture: EarlyConsoleCapture = (() => {
       captureLog('error', args);
       capture.errorCount++;
       capture.originalConsole!.error(...args);
-      notifyListeners(capture.errorCount, capture.warningCount);
+      notifyListeners(capture.errorCount, capture.warningCount, capture.infoCount);
     };
     console.warn = (...args) => {
       captureLog('warn', args);
       capture.warningCount++;
       capture.originalConsole!.warn(...args);
-      notifyListeners(capture.errorCount, capture.warningCount);
+      notifyListeners(capture.errorCount, capture.warningCount, capture.infoCount);
     };
     console.info = (...args) => {
       captureLog('info', args);
+      capture.infoCount++;
       capture.originalConsole!.info(...args);
+      notifyListeners(capture.errorCount, capture.warningCount, capture.infoCount);
     };
     capture.isPatched = true;
   }
@@ -247,7 +252,7 @@ export class GlobalDevBar {
   private lastSchema: string | null = null;
   private savingOutline = false;
   private savingSchema = false;
-  private consoleFilter: 'error' | 'warn' | null = null;
+  private consoleFilter: 'error' | 'warn' | 'info' | null = null;
 
   // Modal states
   private showOutlineModal = false;
@@ -368,17 +373,19 @@ export class GlobalDevBar {
   }
 
   /**
-   * Get current error and warning counts from the log array
+   * Get current error, warning, and info counts from the log array
    */
-  private getLogCounts(): { errorCount: number; warningCount: number } {
+  private getLogCounts(): { errorCount: number; warningCount: number; infoCount: number } {
     const logs = earlyConsoleCapture.logs;
     let errorCount = 0;
     let warningCount = 0;
+    let infoCount = 0;
     for (const log of logs) {
       if (log.level === 'error') errorCount++;
       else if (log.level === 'warn') warningCount++;
+      else if (log.level === 'info') infoCount++;
     }
-    return { errorCount, warningCount };
+    return { errorCount, warningCount, infoCount };
   }
 
   /**
@@ -951,40 +958,67 @@ export class GlobalDevBar {
   }
 
   /**
-   * Get which metrics should be visible vs hidden based on current breakpoint.
-   * Returns metrics in order of importance (least important hidden first).
-   *
-   * Visibility by breakpoint:
-   * - lg, xl, 2xl: Show all metrics
-   * - md: Hide pageSize, INP
-   * - sm: Hide pageSize, INP, CLS
-   * - base: Hide pageSize, INP, CLS, LCP (only breakpoint + FCP visible)
+   * Get which metrics should be visible vs hidden based on available space.
+   * Dynamically calculates based on window width, number of badges, and other elements.
+   * Returns metrics in display order (FCP, LCP, CLS, INP, pageSize).
+   * Hides metrics in reverse priority order (pageSize first, then INP, CLS, LCP, FCP).
    */
   private getResponsiveMetricVisibility(): {
     visible: Array<'fcp' | 'lcp' | 'cls' | 'inp' | 'pageSize'>;
     hidden: Array<'fcp' | 'lcp' | 'cls' | 'inp' | 'pageSize'>;
   } {
-    const bp = this.breakpointInfo?.tailwindBreakpoint ?? 'base';
-    const allMetrics: Array<'fcp' | 'lcp' | 'cls' | 'inp' | 'pageSize'> = [
-      'fcp',
-      'lcp',
-      'cls',
-      'inp',
-      'pageSize',
-    ];
+    type MetricKey = 'fcp' | 'lcp' | 'cls' | 'inp' | 'pageSize';
 
-    // Define which metrics to hide at each breakpoint (cumulative from least important)
-    const hiddenByBreakpoint: Record<string, Array<'fcp' | 'lcp' | 'cls' | 'inp' | 'pageSize'>> = {
-      '2xl': [],
-      xl: [],
-      lg: [],
-      md: ['pageSize', 'inp'],
-      sm: ['pageSize', 'inp', 'cls'],
-      base: ['pageSize', 'inp', 'cls', 'lcp'],
-    };
+    // Display order (most important first)
+    const displayOrder: MetricKey[] = ['fcp', 'lcp', 'cls', 'inp', 'pageSize'];
 
-    const hidden = hiddenByBreakpoint[bp] || [];
-    const visible = allMetrics.filter((m) => !hidden.includes(m));
+    // Approximate widths in pixels (measured from typical rendered output)
+    const METRIC_WIDTH = 95; // "FCP 1234MS |" including separator
+    const BADGE_WIDTH = 30; // Each console badge
+    const ACTION_BUTTON_WIDTH = 30; // Each action button
+    const BREAKPOINT_WIDTH = 120; // "MD - 1234x5678 |"
+    const CONNECTION_DOT_WIDTH = 20; // Connection indicator
+    const ELLIPSIS_WIDTH = 28; // "···" button
+    const CONTAINER_PADDING = 32; // Internal padding and gaps
+    const NEXTJS_BAR_WIDTH = 80; // Space reserved for Next.js dev bar on left
+    const RIGHT_MARGIN = 16; // Small margin on right edge
+
+    // Count visible badges
+    const { errorCount, warningCount, infoCount } = this.getLogCounts();
+    const badgeCount =
+      (errorCount > 0 ? 1 : 0) + (warningCount > 0 ? 1 : 0) + (infoCount > 0 ? 1 : 0);
+
+    // Count action buttons (screenshot, AI review, outline, schema, settings, collapse)
+    const { showScreenshot } = this.options;
+    const actionButtonCount = (showScreenshot ? 1 : 0) + 5; // 5 always-visible buttons
+
+    // Calculate available width for metrics
+    // DevBar spans from NEXTJS_BAR_WIDTH to (windowWidth - RIGHT_MARGIN)
+    const windowWidth = typeof window !== 'undefined' ? window.innerWidth : 1024;
+    const containerWidth = windowWidth - NEXTJS_BAR_WIDTH - RIGHT_MARGIN;
+    const fixedWidth =
+      CONNECTION_DOT_WIDTH +
+      BREAKPOINT_WIDTH +
+      badgeCount * BADGE_WIDTH +
+      actionButtonCount * ACTION_BUTTON_WIDTH +
+      CONTAINER_PADDING;
+
+    const availableForMetrics = containerWidth - fixedWidth;
+
+    // Determine how many metrics fit (reserve space for ellipsis if hiding any)
+    let maxMetrics = Math.floor(availableForMetrics / METRIC_WIDTH);
+
+    // If we can't show all metrics, reserve space for ellipsis button
+    if (maxMetrics < displayOrder.length && maxMetrics > 0) {
+      maxMetrics = Math.floor((availableForMetrics - ELLIPSIS_WIDTH) / METRIC_WIDTH);
+    }
+
+    // Clamp to valid range
+    maxMetrics = Math.max(0, Math.min(maxMetrics, displayOrder.length));
+
+    // Split into visible and hidden (visible gets the first N in display order)
+    const visible = displayOrder.slice(0, maxMetrics);
+    const hidden = displayOrder.slice(maxMetrics);
 
     return { visible, hidden };
   }
@@ -1544,6 +1578,7 @@ export class GlobalDevBar {
     earlyConsoleCapture.logs = [];
     earlyConsoleCapture.errorCount = 0;
     earlyConsoleCapture.warningCount = 0;
+    earlyConsoleCapture.infoCount = 0;
     this.consoleLogs = [];
     this.consoleFilter = null;
     this.render();
@@ -2289,7 +2324,7 @@ export class GlobalDevBar {
     if (!this.container) return;
 
     const { position, accentColor } = this.options;
-    const { errorCount, warningCount } = this.getLogCounts();
+    const { errorCount, warningCount, infoCount } = this.getLogCounts();
 
     // Simple position styles - same anchor points as expanded mode
     const positionStyles: Record<
@@ -2369,6 +2404,11 @@ export class GlobalDevBar {
     // Warning badge
     if (warningCount > 0) {
       wrapper.appendChild(this.createConsoleBadge('warn', warningCount, BUTTON_COLORS.warning));
+    }
+
+    // Info badge
+    if (infoCount > 0) {
+      wrapper.appendChild(this.createConsoleBadge('info', infoCount, BUTTON_COLORS.info));
     }
 
     // Screenshot button (if enabled)
@@ -3105,7 +3145,7 @@ export class GlobalDevBar {
     if (!this.container) return;
 
     const { position, accentColor, showMetrics, showScreenshot, showConsoleBadges } = this.options;
-    const { errorCount, warningCount } = this.getLogCounts();
+    const { errorCount, warningCount, infoCount } = this.getLogCounts();
 
     // Dot offset from container edge in expanded mode:
     // border (1px) + padding (12px) + half indicator (6px) = 19px from left
@@ -3463,6 +3503,9 @@ export class GlobalDevBar {
       if (warningCount > 0) {
         statusRow.appendChild(this.createConsoleBadge('warn', warningCount, BUTTON_COLORS.warning));
       }
+      if (infoCount > 0) {
+        statusRow.appendChild(this.createConsoleBadge('info', infoCount, BUTTON_COLORS.info));
+      }
     }
 
     mainRow.appendChild(statusRow);
@@ -3769,6 +3812,13 @@ export class GlobalDevBar {
     let tooltipEl: HTMLDivElement | null = null;
     let isPinned = false;
 
+    // Store original opacity to restore on deactivate
+    const originalOpacity = element.style.opacity || '0.7';
+
+    const setActiveState = (active: boolean) => {
+      element.style.opacity = active ? '1' : originalOpacity;
+    };
+
     const showTooltip = () => {
       if (tooltipEl) {
         this.removeTooltip(tooltipEl);
@@ -3791,10 +3841,12 @@ export class GlobalDevBar {
       if (isPinned) {
         // Unpin and hide
         isPinned = false;
+        setActiveState(false);
         hideTooltip();
       } else {
         // Pin and show
         isPinned = true;
+        setActiveState(true);
         showTooltip();
       }
     };
@@ -3802,6 +3854,7 @@ export class GlobalDevBar {
     // Hover shows tooltip (if not pinned)
     element.onmouseenter = () => {
       if (!isPinned) {
+        setActiveState(true);
         showTooltip();
       }
     };
@@ -3809,14 +3862,21 @@ export class GlobalDevBar {
     // Hover hides tooltip (if not pinned)
     element.onmouseleave = () => {
       if (!isPinned) {
+        setActiveState(false);
         hideTooltip();
       }
     };
 
     // Close pinned tooltip when clicking outside
     const handleDocumentClick = (e: MouseEvent) => {
-      if (isPinned && tooltipEl && !element.contains(e.target as Node) && !tooltipEl.contains(e.target as Node)) {
+      if (
+        isPinned &&
+        tooltipEl &&
+        !element.contains(e.target as Node) &&
+        !tooltipEl.contains(e.target as Node)
+      ) {
         isPinned = false;
+        setActiveState(false);
         hideTooltip();
       }
     };
@@ -4156,14 +4216,14 @@ export class GlobalDevBar {
   }
 
   /**
-   * Create a console badge for error/warning counts
+   * Create a console badge for error/warning/info counts
    */
   private createConsoleBadge(
-    type: 'error' | 'warn',
+    type: 'error' | 'warn' | 'info',
     count: number,
     color: string
   ): HTMLSpanElement {
-    const label = type === 'error' ? 'error' : 'warning';
+    const label = type === 'error' ? 'error' : type === 'warn' ? 'warning' : 'info';
     const isActive = this.consoleFilter === type;
 
     const badge = document.createElement('span');

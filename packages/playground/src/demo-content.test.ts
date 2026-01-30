@@ -56,16 +56,16 @@ describe('Demo Content Log Buttons', () => {
       expect(btn.textContent).toBe('Log Info');
     });
 
-    it('should call console.log when clicked', () => {
-      const logSpy = vi.fn();
-      console.log = logSpy;
+    it('should call console.info when clicked', () => {
+      const infoSpy = vi.fn();
+      console.info = infoSpy;
 
       const btn = container.querySelector('.btn.info') as HTMLButtonElement;
       btn.click();
 
-      expect(logSpy).toHaveBeenCalledTimes(1);
-      expect(logSpy).toHaveBeenCalledWith(
-        '[Test] This is an info log message',
+      expect(infoSpy).toHaveBeenCalledTimes(1);
+      expect(infoSpy).toHaveBeenCalledWith(
+        '[Test] This is an info message',
         expect.objectContaining({ timestamp: expect.any(Number) })
       );
     });
@@ -87,7 +87,8 @@ describe('Demo Content Log Buttons', () => {
 
       expect(warnSpy).toHaveBeenCalledTimes(1);
       expect(warnSpy).toHaveBeenCalledWith(
-        '[Test] This is a warning message - something might be wrong'
+        '[Test] This is a warning message',
+        expect.objectContaining({ timestamp: expect.any(Number) })
       );
     });
   });
@@ -107,7 +108,10 @@ describe('Demo Content Log Buttons', () => {
       btn.click();
 
       expect(errorSpy).toHaveBeenCalledTimes(1);
-      expect(errorSpy).toHaveBeenCalledWith('[Test] This is an error message', expect.any(Error));
+      expect(errorSpy).toHaveBeenCalledWith(
+        '[Test] This is an error message',
+        expect.objectContaining({ timestamp: expect.any(Number) })
+      );
     });
   });
 
@@ -133,16 +137,28 @@ describe('Demo Content Log Buttons', () => {
       btn.click();
 
       expect(logSpy).toHaveBeenCalledTimes(1);
-      expect(logSpy).toHaveBeenCalledWith('[Test] First log');
+      expect(logSpy).toHaveBeenCalledWith(
+        '[Test] First log (debug)',
+        expect.objectContaining({ timestamp: expect.any(Number) })
+      );
 
       expect(infoSpy).toHaveBeenCalledTimes(1);
-      expect(infoSpy).toHaveBeenCalledWith('[Test] Second log (info)');
+      expect(infoSpy).toHaveBeenCalledWith(
+        '[Test] Second log (info)',
+        expect.objectContaining({ timestamp: expect.any(Number) })
+      );
 
       expect(warnSpy).toHaveBeenCalledTimes(1);
-      expect(warnSpy).toHaveBeenCalledWith('[Test] Third log (warning)');
+      expect(warnSpy).toHaveBeenCalledWith(
+        '[Test] Third log (warning)',
+        expect.objectContaining({ timestamp: expect.any(Number) })
+      );
 
       expect(errorSpy).toHaveBeenCalledTimes(1);
-      expect(errorSpy).toHaveBeenCalledWith('[Test] Fourth log (error)');
+      expect(errorSpy).toHaveBeenCalledWith(
+        '[Test] Fourth log (error)',
+        expect.objectContaining({ timestamp: expect.any(Number) })
+      );
     });
 
     it('should trigger 1 warning and 1 error (for badge counts)', () => {

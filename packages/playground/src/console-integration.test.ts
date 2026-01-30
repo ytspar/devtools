@@ -7,7 +7,7 @@
 
 import { ConsoleCapture } from '@ytspar/sweetlink/browser/consoleCapture';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { createDemoContent } from './demo-content';
+import { createDemoContent } from './demo-content.js';
 
 describe('Console Capture Integration', () => {
   let container: HTMLElement;
@@ -54,8 +54,8 @@ describe('Console Capture Integration', () => {
 
       const logs = capture.getLogs();
       expect(logs.length).toBe(1);
-      expect(logs[0].level).toBe('log');
-      expect(logs[0].message).toContain('[Test] This is an info log message');
+      expect(logs[0].level).toBe('info');
+      expect(logs[0].message).toContain('[Test] This is an info message');
     });
 
     it('should not increment error or warning counts', () => {
@@ -157,10 +157,10 @@ describe('Console Capture Integration', () => {
       btn.click();
 
       const logs = capture.getLogs();
-      expect(logs[0].message).toBe('[Test] First log');
-      expect(logs[1].message).toBe('[Test] Second log (info)');
-      expect(logs[2].message).toBe('[Test] Third log (warning)');
-      expect(logs[3].message).toBe('[Test] Fourth log (error)');
+      expect(logs[0].message).toContain('[Test] First log (debug)');
+      expect(logs[1].message).toContain('[Test] Second log (info)');
+      expect(logs[2].message).toContain('[Test] Third log (warning)');
+      expect(logs[3].message).toContain('[Test] Fourth log (error)');
     });
   });
 
@@ -176,7 +176,7 @@ describe('Console Capture Integration', () => {
 
       const logs = capture.getLogs();
       expect(logs.length).toBe(3);
-      expect(logs[0].level).toBe('log');
+      expect(logs[0].level).toBe('info');
       expect(logs[1].level).toBe('warn');
       expect(logs[2].level).toBe('error');
     });
