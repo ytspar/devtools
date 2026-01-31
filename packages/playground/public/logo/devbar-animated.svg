@@ -46,21 +46,20 @@
 <rect class="label-line" x="250" y="1080" width="920" height="8"/>
 <rect class="label-line" x="250" y="1150" width="920" height="8"/>
 
-<!-- Layer 2: Magnetic disk (dark brown) - positioned LEFT so window reveals it when shutter slides -->
+<!-- Layer 2: Magnetic disk (dark brown) - positioned so window reveals it when shutter slides -->
 <!-- Disk right edge at ~800. Window closed=813-966 (no overlap). Window open=763-916 (overlaps 763-800) -->
 <g clip-path="url(#frame-clip)">
   <circle class="magnetic-disk" cx="400" cy="280" r="400"/>
 </g>
 
-<!-- Layer 3: THE ENTIRE LARGE SHUTTER BLOCK (clipped to frame) -->
-<!-- When shutter slides LEFT, the window moves LEFT and reveals the magnetic disk THROUGH the window -->
-<g clip-path="url(#frame-clip)">
-  <g class="shutter-group">
-    <path class="shutter" fill-rule="evenodd" d="
-      M198 95 H1069 V453 H198 Z
-      M813 160 H966 V400 H813 Z
-    "/>
-  </g>
+<!-- Layer 3: THE SHUTTER (does NOT fill entire frame - leaves sliding space on left) -->
+<!-- Shutter starts at x=300, leaving sliding space x=198-300 on left -->
+<!-- When shutter slides -50px LEFT into the sliding space, window reveals magnetic disk -->
+<g class="shutter-group">
+  <path class="shutter" fill-rule="evenodd" d="
+    M300 95 H1069 V453 H300 Z
+    M813 160 H966 V400 H813 Z
+  "/>
 </g>
 
 </svg>
