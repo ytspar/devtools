@@ -27,15 +27,16 @@
 </style>
 
 <defs>
-  <!-- Clip for the shutter container (the full housing frame) -->
-  <clipPath id="container-clip">
-    <rect x="813" y="95" width="153" height="306"/>
-  </clipPath>
-  <!-- Mask to hide container area from disk body so only shutter provides fill there -->
+  <!-- Mask to hide the ENTIRE shutter area from disk body -->
+  <!-- The shutter is the large inset block at the top (x=198-1069, y=95-453) -->
   <mask id="disk-body-mask">
     <rect width="100%" height="100%" fill="white"/>
-    <rect x="813" y="95" width="153" height="306" fill="black"/>
+    <rect x="198" y="95" width="871" height="358" fill="black"/>
   </mask>
+  <!-- Clip for the frame opening where shutter slides and magnetic disk is visible -->
+  <clipPath id="frame-clip">
+    <rect x="198" y="95" width="871" height="358"/>
+  </clipPath>
 </defs>
 
 <!-- Layer 1: Main disk body (masked to exclude container area) -->
@@ -45,17 +46,21 @@
 <rect class="label-line" x="250" y="1080" width="920" height="8"/>
 <rect class="label-line" x="250" y="1150" width="920" height="8"/>
 
-<!-- Layer 2: Magnetic disk (dark brown) - visible in container area (window in housing) -->
-<g clip-path="url(#container-clip)">
-  <circle class="magnetic-disk" cx="710" cy="248" r="450"/>
+<!-- Layer 2: Magnetic disk (dark brown) - positioned LEFT so window reveals it when shutter slides -->
+<!-- Disk right edge at ~800. Window closed=813-966 (no overlap). Window open=763-916 (overlaps 763-800) -->
+<g clip-path="url(#frame-clip)">
+  <circle class="magnetic-disk" cx="400" cy="280" r="400"/>
 </g>
 
-<!-- Layer 3: SOLID shutter that slides LEFT to reveal magnetic disk -->
-<!-- NO clip-path so the ENTIRE block visually slides (not just the visible portion) -->
-<!-- When it slides -50px, the left edge moves over the disk body (same color, invisible) -->
-<!-- and the right edge reveals the magnetic disk beneath -->
-<g class="shutter-group">
-  <rect class="shutter" x="813" y="95" width="153" height="306"/>
+<!-- Layer 3: THE ENTIRE LARGE SHUTTER BLOCK (clipped to frame) -->
+<!-- When shutter slides LEFT, the window moves LEFT and reveals the magnetic disk THROUGH the window -->
+<g clip-path="url(#frame-clip)">
+  <g class="shutter-group">
+    <path class="shutter" fill-rule="evenodd" d="
+      M198 95 H1069 V453 H198 Z
+      M813 160 H966 V400 H813 Z
+    "/>
+  </g>
 </g>
 
 </svg>
